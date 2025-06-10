@@ -1,10 +1,25 @@
-prove that the endpoints that we need to proxy are /api, /ajax-api, /get-artifact, and /model-versions/get-artifact
+requests for logging and accessing logged information go through the tracking server, except sometimes for artifacts.
+By default, these requests are sent directly to the backing storage. https://mlflow.org/docs/latest/tracking/server#tracking-server-no-proxy
+
+I think the endpoints that we need to proxy are /api, /ajax-api, /get-artifact. I read somewhere that /model-versions/get-artifact must get
+proxied, too. However, I didn't see it in the logs.
+
+if we use proxied artifact storage e.g. --serve-artifacts, this makes it so that request for saving artifacts are
+proxied through the tracking server.
+
 
 what can get logged in mlflow?
 - this page lists what can be logged: https://www.mlflow.org/docs/1.26.1/tracking.html#automatic-logging: "Automatic logging allows you to log metrics, parameters, and models without the need for explicit log statements."
 - data sources also get logged
 - openai example logs a trace
 - default mlflow example logs system metrics, model metrics, params, model artifacts, and a dataset
+
+# how to use
+
+- run tracking server
+- run caddy reverse proxy
+- run experiment scripts default.py and openai.py
+- view the proxied UI at localhost:3030
 
 tracking server runs at port 4040
 reverse proxy runs at port 3030
