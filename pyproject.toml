@@ -1,0 +1,13 @@
+[project]
+name = "mlflow-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "mlflow>=2.22.1",
+    "openai>=1.85.0",
+    "psutil>=7.0.0",
+    "pyspark>=4.0.0",
+    "scikit-learn>=1.7.0",
+]
