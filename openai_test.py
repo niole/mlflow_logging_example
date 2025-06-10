@@ -3,7 +3,7 @@ from random import random, randint
 import mlflow
 from openai import OpenAI
 
-mlflow.set_tracking_uri("http://localhost:4040")
+mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 mlflow.set_experiment("openai_"+	str(randint(0, 1000)))
 
 mlflow.openai.autolog()

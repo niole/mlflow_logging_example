@@ -6,9 +6,49 @@ what can get logged in mlflow?
 - openai example logs a trace
 - default mlflow example logs system metrics, model metrics, params, model artifacts, and a dataset
 
-run:
+tracking server runs at port 4040
+reverse proxy runs at port 3030
+
+run the tracking server and an mlflow logging example:
 ```sh
+export REV_PROXY_PORT=3030
 export OPENAI_API_KEY=<key>
 uv run ./trackingserver.sh
 uv run default.py
 ```
+
+run a caddy reverse proxy which logs all traffic to the tracking server:
+```sh
+caddy reverse-proxy \
+--from :3030 --to :4040 \
+--access-log
+```
+
+run a caddy reverse proxy which blocks all traffic except some:
+```sh
+#TODO
+caddy reverse-proxy \
+--from :3030 --to :4040 \
+--access-log
+```
+
+# Accessed URLs
+
+URLs accessed when logging metrics:
+/api, e.g. /api/2.0/mlflow/runs/log-inputs, /api/2.0/mlflow/runs/log-model, /api/2.0/mlflow/runs/log-batch, /api/2.0/mlflow/runs/log-inputs
+
+URLs accessed when viewing UI:
+
+run UI:
+/ajax-api, e.g. /ajax-api/2.0/mlflow/runs/search
+
+traces:
+/ajax-api/2.0/mlflow/traces?experiment_ids=15&order_by=timestamp_ms%20DESC&filter=re
+
+artifact viewing: /get-artifact?path=model%2FMLmodel&run_uuid=219ba0a944254b66a7e47b690df16d9f
+
+overview, model metrics, and system metrics seem to be fetched always on page load:
+/ajax-api/2.0/mlflow/model-versions/search
+/ajax-api/2.0/mlflow/registered-models/search
+/ajax-api/2.0/mlflow/runs/get?run_id=219ba0a944254b66a7e47b690df16d9f
+
