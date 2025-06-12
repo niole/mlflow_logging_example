@@ -16,6 +16,8 @@ what can get logged in mlflow?
 
 # how to use
 
+## run dev mode
+
 - run tracking server
 - run caddy reverse proxy
 - run experiment scripts default.py and openai.py
@@ -45,6 +47,17 @@ run a caddy reverse proxy which blocks all traffic except some:
 caddy reverse-proxy \
 --from :3030 --to :4040 \
 --access-log
+```
+
+## run  prod mode
+
+run the tracking server
+set the reverse proxy env var
+run the prod server:
+```sh
+uv run fastapi dev production/server.py
+
+curl localhost:8000
 ```
 
 # Accessed URLs
