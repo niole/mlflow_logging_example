@@ -18,6 +18,7 @@ what can get logged in mlflow?
 
 ## run dev mode
 
+- initialize the backend.db: `sqlite3 backend.db`, then `create table cat(cat int);`
 - run tracking server
 - run caddy reverse proxy
 - run experiment scripts default.py and openai.py
