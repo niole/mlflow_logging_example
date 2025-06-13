@@ -21,6 +21,9 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.3, random_state=42
 )
 
+# NOTE: downloading and training this model creates its own run
+# I guess if you do something outside of an explicit start run call,
+# mlflow will start a run for you
 # Train a model (we'll use this in our function)
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
@@ -78,3 +81,11 @@ with mlflow.start_run() as run:
         print(trace.data)
 
     mlflow.log_metrics(result.metrics)
+
+    # fake eval table
+    table_dict = {
+        "inputs": ["What is MLflow?", "What is Databricks?"],
+        "outputs": ["MLflow is ...", "Databricks is ..."],
+        "toxicity": [0.0, 0.0],
+    }
+    mlflow.log_table(data=table_dict, artifact_file="qabot_eval_results.json")
