@@ -89,3 +89,14 @@ with mlflow.start_run() as run:
         "toxicity": [0.0, 0.0],
     }
     mlflow.log_table(data=table_dict, artifact_file="qabot_eval_results.json")
+
+    # can you log an eval table result as a metric?
+    df = pd.DataFrame(table_dict)
+    for (_, row) in df.iterrows():
+        row_dict = dict([(c, row[c]) for c in df.columns])
+        print(row_dict)
+        # TODO cannot log string as a metric, and cannot log multiple values for params
+        # NOTE: cannot log llm samples as metrics or params, because there are many of them and they are strings
+        #mlflow.log_metric(row_dict)
+        #mlflow.log_params(row_dict)
+

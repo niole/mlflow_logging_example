@@ -83,8 +83,16 @@ overview, model metrics, and system metrics seem to be fetched always on page lo
 
 # questions
 
-- what are the tabs that show logged info? is it jst in the run UI?
 - can we get an example script that logs everything important to customers?
-- do we proxy our artifact storage through the tracking server?
-- i should check the mlflow-proxy to see what is proxied
-- i should check the mlflow ui in domino to see if my logged examples all work already
+- the log_table command, which users may use to log evaluate results, creates an artifact and there appears to be no bulk
+get artifacts for multiple runs API. Also the tables is stored as a json asset, which is not specific enough for us to know
+that a specific file contains an evaluation result. Maybe we can make it findable if we log it with a specific name. Maybe we could
+implement our own fetching logic with reads evaluation tables out of the artifact store file tree
+- the runs search api contains metrics, params, this could be used to find evaluation results, however TODO can we link samples to a metric or param?
+- you can know what trace caused an evaluation result if you know the trace id when you log the eval result. It seems
+unlikely for us to be able to do this by examining past traces when logging the current metric.trace data does contain the inputs
+and outputs of a trace, but what if there are multiple traces with the same inputs and outputs? Maybe we could match on timestamp of
+execution, but that is all just guessing...if domino initialized the trace, and added the span for the eval result and then logged
+the eval artifact on behalf of the user, then we could know the trace id
+- cannot log llm samples as metrics or params, because there are many of them and they are strings
+
