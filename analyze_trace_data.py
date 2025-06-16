@@ -2,6 +2,7 @@ import os
 import mlflow
 from mlflow import MlflowClient
 import click
+from pprint import pprint
 
 # https://mlflow.org/docs/latest/genai/tracing/search-traces
 
@@ -31,9 +32,10 @@ def main(runid):
 
                     inputs = ','.join(s.inputs['args'])
                     grouped_traces[inputs] = grouped_traces.get(inputs, [])
-                    grouped_traces[inputs].append(s.outputs)
+                    grouped_traces[inputs].append({ "outputs": s.outputs, "url": eval_trace_url})
 
-        print("Grouped traces", grouped_traces)
+        print("Grouped traces")
+        pprint(grouped_traces)
 
         #mlflow_ts = mlflow.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
         #print(mlflow_ts)
