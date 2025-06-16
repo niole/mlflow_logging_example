@@ -6,12 +6,17 @@ import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 import util
+from pydantic import BaseModel
+
+class Question(BaseModel):
+	content: str
 
 app = FastAPI()
 
-# Set up MLflow tracking
-mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
-mlflow.set_experiment("prod_tracing_"+	str(randint(0, 1000)))
+if os.getenv("PRODUCTION", "false") != "true":
+    # only define an experiment if running in dev mode
+    mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
+    mlflow.set_experiment("assistant_dev_server")
 
 # Enable automatic tracing for OpenAI
 mlflow.openai.autolog()
@@ -20,3 +25,7 @@ mlflow.openai.autolog()
 @app.get("/")
 async def answer_question():
     return util.answer_question("what is mlflow tracing?")
+
+@app.post("/assistant")
+async def assistant(question: Question):
+    return util.ask_assistant(question.content)

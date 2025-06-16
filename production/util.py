@@ -3,17 +3,31 @@ from random import random, randint
 from mlflow.entities import SpanType
 from openai import OpenAI
 import os
+from  domino_eval_trace import domino_eval_trace_2
+import evaluators
 
+client = OpenAI()
+
+@domino_eval_trace_2(evaluator=evaluators.assistant_evaluator)
+def ask_assistant(question: str) -> str:
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant who messes up sometimes, but you try your best"},
+        {"role": "user", "content": question}
+    ]
+
+    response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    content = response.choices[0].message.content
+
+    if content is None:
+        return "I couldn't help with that"
+    return content
 
 @mlflow.trace(name="RAG Pipeline", span_type=SpanType.CHAIN)
 def answer_question(question: str) -> str:
     """A simple RAG pipeline with manual tracing."""
 
-    # Step 1: Retrieve context (manually traced)
     context = retrieve_context(question)
 
-    # Step 2: Generate answer (automatically traced by OpenAI autolog)
-    client = OpenAI()
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -31,8 +45,3 @@ def retrieve_context(question: str) -> str:
     """Simulate context retrieval."""
     # Simulate retrieval logic
     return f"Relevant context for: {question}"
-
-
-# Execute the traced pipeline
-result = answer_question("What is MLflow Tracing?")
-print(result)

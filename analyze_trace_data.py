@@ -14,8 +14,9 @@ client = MlflowClient()
 show that we can render the eval inputs and outputs and link to traces in the mlflow UI
 """
 @click.command()
-@click.option('--runid', help='mlflow run id', default="bee97d31ff21499d96813dedc7d40363")
-def main(runid):
+@click.option('--runid', help='mlflow run id, optional')
+@click.option('--expid', help='mlflow experiment id')
+def main(runid, expid):
     run_ids = [runid]
     for run_id in run_ids:
         run = mlflow.get_run(run_id)
