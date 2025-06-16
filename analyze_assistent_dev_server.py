@@ -11,6 +11,9 @@ client = MlflowClient()
 
 """
 analyzes outputs from the assistant dev server experiment
+
+The UI would have to call logic like this in order to get the trace data
+per run
 """
 def main():
     exps = mlflow.search_experiments(filter_string="name = 'assistant_dev_server'")
