@@ -7,8 +7,9 @@ this server contains some code examples using mlflow and openai.
 - run ask assistant script: `./ask_assistant.sh "is oblivion remastered good?"`
 - run trace analysis script: `uv run analyze_assistent_dev_server.py`
 
-## prereqs for user's server
-- must create an mlflow experiment for ai system server if in dev mode
+## what a user must know in order to use domino evaluations
+- the server which contains what they want to evaluate must initialize an dev-mode experiment into which the evaluations
+will be logged in dev mode
 - must set the `PRODUCTION` environment variable, so that the domino evaluation library doesn't execute inline in production mode
 
 ## todos
