@@ -12,13 +12,16 @@ mlflow.autolog()
 """
 BEST
 
-the evaluation data is the output of the trace, input is its input
-any traces that were autologged downstream of the trace will be
-tagged as part of this eval trace group
+This creates a decorator that the end user decorates the code
+for their evaluation calculation. The decorator creates a trace for each
+evaluation. The user can have as many eval traces per run as they want.
 
-user can have as many eval traces per run as they want
-if autologged traces were logged with the auto trace decorator,
-mlflow may link them to the parent trace
+Their evaluation function must take an input and return their evaluation
+metrics as an output, which is a dictionary, where the labels are the
+metric names and the values are the metrics.
+
+If the user turns on autolog for mlflow/their chosen framework, then downstream
+traces may automatically be linked to domino eval trace.
 """
 def domino_eval_trace(func):
 
