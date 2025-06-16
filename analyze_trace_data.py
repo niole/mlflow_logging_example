@@ -12,9 +12,10 @@ client = MlflowClient()
 show that we can render the eval inputs and outputs and link to traces in the mlflow UI
 """
 
-experiment_id = 30
+experiment_id = str(31)
+run_id = "a8e41f93bf1c47cc8175f68c8c6d2637"
 print(f"get domino traces from experiment {experiment_id}")
-ts = client.search_traces(experiment_ids=['30'], filter_string="trace.name = 'domino_eval_trace'")
+ts = client.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
 for t in ts:
     for s in t.data.spans:
         if s.name == "domino_eval_trace":
@@ -24,4 +25,7 @@ for t in ts:
             inputs = s.inputs['args']
             outputs = s.outputs
 
+            # if output is dict, we can render as table row
+            # if outputs is primitive, render by itself
+            # if it's a dataframe, i'm not sure how to render...
             print(inputs, outputs, eval_trace_url)

@@ -48,18 +48,22 @@ def content_run_trace_example(eval_input):
         eval_response = int(content)
         mlflow.log_metric("output", eval_response)
         return eval_response
-
+"""
+BEST
+"""
 def main3(eval_input):
     print("Hello from openai_test main3")
 
-    more_eval_inputs = [
-        "I am too busy to help and I am not sorry",
-        "I am happy to help",
-        "I am not sure how to help"
-    ]
+    with mlflow.start_run():
 
-    for e in more_eval_inputs:
-        content_run_trace_example(e)
+        more_eval_inputs = [
+            "I am too busy to help and I am not sorry",
+            "I am happy to help",
+            "I am not sure how to help"
+        ]
+
+        for e in more_eval_inputs:
+            content_run_trace_example(e)
 
 @domino_eval_run_dec
 def main2():

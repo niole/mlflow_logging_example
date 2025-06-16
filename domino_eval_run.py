@@ -10,37 +10,8 @@ client = MlflowClient()
 mlflow.autolog()
 
 """
-A domino eval run links all traces executed inside the run to
-a domino eval trace
-the user is asked to log whatever eval metrics to the run
-the domino eval run links one input to one output
-input is expected to be a primitive data type, e.g. string, int, bool, etc.
-input is not expected to be a complex data type, e.g. list, dict, etc.
-"""
+BEST
 
-@contextmanager
-@mlflow.trace(name="domino_eval_trace")
-def domino_eval_run(input_v):
-    run = mlflow.start_run()
-    run_id = run.info.run_id
-    mlflow.log_param("input", input_v)
-    parent_trace = mlflow.get_last_active_trace_id()
-
-    yield run
-
-    traces = client.search_traces(
-        run_id=run_id,
-        experiment_ids=[run.info.experiment_id]
-    )
-    # set same session_id on each trace
-    print(parent_trace)
-    for trace in traces:
-        spans = trace.data.spans
-        print(spans)
-
-    return "trace res"
-
-"""
 the evaluation data is the output of the trace, input is its input
 any traces that were autologged downstream of the trace will be
 tagged as part of this eval trace group
@@ -80,6 +51,37 @@ def domino_eval_trace(func):
         return result
 
     return wrapper
+
+"""
+A domino eval run links all traces executed inside the run to
+a domino eval trace
+the user is asked to log whatever eval metrics to the run
+the domino eval run links one input to one output
+input is expected to be a primitive data type, e.g. string, int, bool, etc.
+input is not expected to be a complex data type, e.g. list, dict, etc.
+"""
+
+@contextmanager
+@mlflow.trace(name="domino_eval_trace")
+def domino_eval_run(input_v):
+    run = mlflow.start_run()
+    run_id = run.info.run_id
+    mlflow.log_param("input", input_v)
+    parent_trace = mlflow.get_last_active_trace_id()
+
+    yield run
+
+    traces = client.search_traces(
+        run_id=run_id,
+        experiment_ids=[run.info.experiment_id]
+    )
+    # set same session_id on each trace
+    print(parent_trace)
+    for trace in traces:
+        spans = trace.data.spans
+        print(spans)
+
+    return "trace res"
 
 def domino_eval_run_dec(func):
 
