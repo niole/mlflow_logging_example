@@ -95,4 +95,5 @@ and outputs of a trace, but what if there are multiple traces with the same inpu
 execution, but that is all just guessing...if domino initialized the trace, and added the span for the eval result and then logged
 the eval artifact on behalf of the user, then we could know the trace id
 - cannot log llm samples as metrics or params, because there are many of them and they are strings
-
+- can we et the active trace ID?
+- what if we do 1-1 mapping of trace to run?

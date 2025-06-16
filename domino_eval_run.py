@@ -1,0 +1,114 @@
+import os
+from random import randint
+import mlflow
+from contextlib import contextmanager
+from mlflow import MlflowClient
+
+# can't find exp if tracking uri not set in file
+mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
+client = MlflowClient()
+mlflow.autolog()
+
+"""
+A domino eval run links all traces executed inside the run to
+a domino eval trace
+the user is asked to log whatever eval metrics to the run
+the domino eval run links one input to one output
+input is expected to be a primitive data type, e.g. string, int, bool, etc.
+input is not expected to be a complex data type, e.g. list, dict, etc.
+"""
+
+@contextmanager
+@mlflow.trace(name="domino_eval_trace")
+def domino_eval_run(input_v):
+    run = mlflow.start_run()
+    run_id = run.info.run_id
+    mlflow.log_param("input", input_v)
+    parent_trace = mlflow.get_last_active_trace_id()
+
+    yield run
+
+    traces = client.search_traces(
+        run_id=run_id,
+        experiment_ids=[run.info.experiment_id]
+    )
+    # set same session_id on each trace
+    print(parent_trace)
+    for trace in traces:
+        spans = trace.data.spans
+        print(spans)
+
+    return "trace res"
+
+"""
+the evaluation data is the output of the trace, input is its input
+any traces that were autologged downstream of the trace will be
+tagged as part of this eval trace group
+
+user can have as many eval traces per run as they want
+if autologged traces were logged with the auto trace decorator,
+mlflow may link them to the parent trace
+"""
+def domino_eval_trace(func):
+
+    @mlflow.trace(name="domino_eval_trace")
+    def wrapper(*args, **kwargs):
+        # create group id
+        group_id = "domino_eval_group_id" + str(randint(0, 1000))
+
+        # tag parent trace
+        parent_span = mlflow.get_current_active_span()
+        parent_span.set_attributes({
+            "domino_eval_group_id": group_id,
+            "is_root_eval_span": True
+        })
+
+        result = func(*args, **kwargs)
+
+        # tag child traces
+        run = mlflow.active_run()
+        traces = client.search_traces(
+            run_id=run.info.run_id,
+            experiment_ids=[run.info.experiment_id]
+        )
+
+        for trace in traces:
+            spans = trace.data.spans
+            for span in spans:
+                client.set_trace_tag(span.request_id, "domino_eval_group_id", group_id)
+
+        return result
+
+    return wrapper
+
+def domino_eval_run_dec(func):
+
+    def wrapper():
+        run = mlflow.start_run()
+        run_id = run.info.run_id
+
+        root_span = client.start_trace(
+            name="domino_eval_trace",
+            inputs={},
+            attributes={},
+        )
+
+        parent_trace = root_span.span_id
+
+        func()
+
+        client.end_trace(request_id=root_span.request_id)
+
+        traces = client.search_traces(
+            run_id=run_id,
+            experiment_ids=[run.info.experiment_id]
+        )
+        # set same session_id on each trace
+        print(parent_trace)
+        for trace in traces:
+            spans = trace.data.spans
+            print(spans)
+
+        return "trace res"
+
+    return wrapper
