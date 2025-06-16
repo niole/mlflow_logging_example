@@ -736,6 +736,7 @@ dependencies = [
     { name = "openai" },
     { name = "psutil" },
     { name = "pyspark" },
+    { name = "python-dotenv" },
     { name = "scikit-learn" },
 ]
 
@@ -747,6 +748,7 @@ requires-dist = [
     { name = "openai", specifier = ">=1.85.0" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pyspark", specifier = ">=4.0.0" },
+    { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "scikit-learn", specifier = ">=1.7.0" },
 ]
 

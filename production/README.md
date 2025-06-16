@@ -2,7 +2,8 @@ this server contains some code examples using mlflow and openai.
 
 # domino eval tracing for ai system example
 
-- start server: `PRODUCTION=false uv run fastapi dev production/server.py`
+- set env vars in .envrc
+- start server: `uv run fastapi dev server.py`
 - start mlflow server (see main readme)
 - run ask assistant script: `./ask_assistant.sh "is oblivion remastered good?"`
 - run trace analysis script: `uv run analyze_assistent_dev_server.py`

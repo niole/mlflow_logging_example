@@ -11,5 +11,6 @@ dependencies = [
     "openai>=1.85.0",
     "psutil>=7.0.0",
     "pyspark>=4.0.0",
+    "python-dotenv>=1.1.0",
     "scikit-learn>=1.7.0",
 ]

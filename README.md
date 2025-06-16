@@ -56,7 +56,8 @@ run the tracking server
 set the reverse proxy env var
 run the prod server:
 ```sh
-uv run fastapi dev production/server.py
+cd production
+uv run fastapi dev server.py
 
 curl localhost:8000
 ```
