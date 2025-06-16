@@ -61,6 +61,14 @@ uv run fastapi dev production/server.py
 curl localhost:8000
 ```
 
+## test domino eval logging example
+
+- run tracking server
+- set environment variables
+- run `uv run openai_test.py`
+- get ID of run that you want to view
+- run analyze traces script `analyze_trace_data.py --runid <runid>`
+
 # Accessed URLs
 
 URLs accessed when logging metrics:

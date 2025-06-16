@@ -50,7 +50,7 @@ def content_run_trace_example(eval_input):
 """
 BEST
 """
-def main3(eval_input):
+def main3():
     print("Hello from openai_test main3")
 
     with mlflow.start_run():
@@ -84,5 +84,4 @@ def main():
 if __name__ == "__main__":
     #main()
     #main2()
-    eval_input = "I am too busy to help and I am not sorry"
-    main3(eval_input)
+    main3()
