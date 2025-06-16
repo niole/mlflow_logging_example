@@ -13,12 +13,13 @@ mlflow.autolog()
 BEST
 
 This creates a decorator that the end user decorates the code
-for their evaluation calculation. The decorator creates a trace for each
+for their evaluation calculation with. The decorator creates a trace for each
 evaluation. The user can have as many eval traces per run as they want.
 
 Their evaluation function must take an input and return their evaluation
 metrics as an output, which is a dictionary, where the labels are the
-metric names and the values are the metrics.
+metric names and the values are the metrics. Metric names must be unique
+across traces. Each trace could output multiple metrics.
 
 If the user turns on autolog for mlflow/their chosen framework, then downstream
 traces may automatically be linked to domino eval trace.
