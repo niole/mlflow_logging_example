@@ -19,7 +19,19 @@ evaluation. The user can have as many eval traces per run as they want.
 Their evaluation function must take an input and return their evaluation
 metrics as an output, which is a dictionary, where the labels are the
 metric names and the values are the metrics. Metric names must be unique
-across traces. Each trace could output multiple metrics.
+across traces. Each trace could output multiple metrics, however the input must
+be the same for each trace.
+
+e.g. run1 -> eval run input -> trace1 -> { "helpfullness": 1, "relevance": 0.8 }
+                               trace2 -> { "correctness": 0.5 }
+
+UI:
+evaluation runs
+run1
+---------------------------------------------------------
+input            | helpfulllness | relevance | correctness
+---------------------------------------------------------
+ <eval run input |     | 1             | 0.8       | 0.5
 
 If the user turns on autolog for mlflow/their chosen framework, then downstream
 traces may automatically be linked to domino eval trace.

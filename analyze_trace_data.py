@@ -16,6 +16,7 @@ experiment_id = str(31)
 run_id = "a8e41f93bf1c47cc8175f68c8c6d2637"
 print(f"get domino traces from experiment {experiment_id}")
 ts = client.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
+metrics = dict()
 for t in ts:
     for s in t.data.spans:
         if s.name == "domino_eval_trace":
