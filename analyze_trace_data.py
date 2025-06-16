@@ -25,7 +25,9 @@ for t in ts:
             inputs = s.inputs['args']
             outputs = s.outputs
 
-            # if output is dict, we can render as table row
-            # if outputs is primitive, render by itself
-            # if it's a dataframe, i'm not sure how to render...
+            # outputs must always be a dict, so we know what to call each metric
             print(inputs, outputs, eval_trace_url)
+
+mlflow_ts = mlflow.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
+print(mlflow_ts)
+

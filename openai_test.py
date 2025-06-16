@@ -46,8 +46,7 @@ def content_run_trace_example(eval_input):
 
     if content is not None:
         eval_response = int(content)
-        mlflow.log_metric("output", eval_response)
-        return eval_response
+        return { "helpfulness": eval_response }
 """
 BEST
 """
