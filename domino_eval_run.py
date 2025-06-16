@@ -19,10 +19,10 @@ evaluation. The user can have as many eval traces per run as they want.
 Their evaluation function must take an input and return their evaluation
 metrics as an output, which is a dictionary, where the labels are the
 metric names and the values are the metrics. Metric names must be unique
-across traces. Each trace could output multiple metrics, however the input must
-be the same for each trace.
+across traces. Each trace could output multiple metrics. There may be
+multiple traces with different inputs.
 
-e.g. run1 -> eval run input -> trace1 -> { "helpfullness": 1, "relevance": 0.8 }
+e.g. run1 -> eval run input1 -> trace1 -> { "helpfullness": 1, "relevance": 0.8 }
                                trace2 -> { "correctness": 0.5 }
 
 UI:

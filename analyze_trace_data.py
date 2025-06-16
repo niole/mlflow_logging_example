@@ -20,20 +20,23 @@ def main(runid):
         run = mlflow.get_run(run_id)
         experiment_id = run.info.experiment_id
         ts = client.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
+
+        # group traces by input
+        grouped_traces = dict()
         for t in ts:
             for s in t.data.spans:
                 if s.name == "domino_eval_trace":
                     search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
                     eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
 
-                    inputs = s.inputs['args']
-                    outputs = s.outputs
+                    inputs = ','.join(s.inputs['args'])
+                    grouped_traces[inputs] = grouped_traces.get(inputs, [])
+                    grouped_traces[inputs].append(s.outputs)
 
-                    # outputs must always be a dict, so we know what to call each metric
-                    print(inputs, outputs, eval_trace_url)
+        print("Grouped traces", grouped_traces)
 
-        mlflow_ts = mlflow.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
-        print(mlflow_ts)
+        #mlflow_ts = mlflow.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
+        #print(mlflow_ts)
 
 
 if __name__ == '__main__':
