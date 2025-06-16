@@ -14,7 +14,7 @@ client = MlflowClient()
 show that we can render the eval inputs and outputs and link to traces in the mlflow UI
 """
 @click.command()
-@click.option('--runid', help='mlflow run id', default="a8e41f93bf1c47cc8175f68c8c6d2637")
+@click.option('--runid', help='mlflow run id', default="bee97d31ff21499d96813dedc7d40363")
 def main(runid):
     run_ids = [runid]
     for run_id in run_ids:
@@ -37,8 +37,15 @@ def main(runid):
         print("Grouped traces")
         pprint(grouped_traces)
 
-        #mlflow_ts = mlflow.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
-        #print(mlflow_ts)
+
+        print()
+        print("mlflow traces as a dataframe")
+        print()
+        mlflow_ts = mlflow.search_traces(run_id=run_id, experiment_ids=[experiment_id], filter_string="trace.name = 'domino_eval_trace'")
+        # input, output cols, eval url, trace id
+        print(mlflow_ts.columns)
+        df = mlflow_ts[['trace_id', 'request', 'response']]
+        print(df.head())
 
 
 if __name__ == '__main__':
