@@ -21,34 +21,38 @@ def main():
         raise Exception("assistant_dev_server experiment not found. Run the dev server first.")
 
     trace_df = pd.DataFrame({'inputs': [], 'outputs': [], 'url': [], 'evaluation_result':[], 'run_id':[] })
-    for exp in exps:
-        experiment_id = exp.experiment_id
-        ts = client.search_traces(
-            experiment_ids=[experiment_id],
-            #filter_string="trace.name = 'domino_eval_trace' AND tag.evaluation_result_label = 'helpfulness'"
-            filter_string="tag.evaluation_result_label = 'helpfulness'",
-            #order_by=["timestamp_ms DESC", "tag.evaluation_result DESC"]
-            order_by=["tag.evaluation_result DESC"]
-        )
+    exp = exps[0]
+    experiment_id = exp.experiment_id
+    ts = client.search_traces(
+        experiment_ids=[experiment_id],
+        #filter_string="trace.name = 'domino_eval_trace' AND tag.evaluation_result_label = 'helpfulness'"
+        filter_string="tag.evaluation_result_label = 'helpfulness'",
+        #order_by=["timestamp_ms DESC", "tag.evaluation_result DESC"]
+        order_by=["tag.evaluation_result DESC"]
+    )
 
-        for t in ts:
-            for s in t.data.spans:
-                if s.name == "domino_eval_trace":
-                    search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
-                    eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
+    for t in ts:
+        for s in t.data.spans:
+            if s.name == "domino_eval_trace":
+                search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
+                eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
 
-                    inputs = ','.join(s.inputs['args'])
+                inputs = ','.join(s.inputs['args'])
 
-                    new_row = pd.DataFrame([{
-                        'inputs': inputs,
-                        'outputs': t.data.response,
-                        'url': eval_trace_url,
-                        'evaluation_result': t.info.tags.get('evaluation_result', None),
-                        'run_id': t.info.tags.get('run_id', None),
-                    }])
-                    trace_df = pd.concat([trace_df, new_row], ignore_index=True)
+                new_row = pd.DataFrame([{
+                    'inputs': inputs,
+                    'outputs': t.data.response,
+                    'url': eval_trace_url,
+                    'evaluation_result': t.info.tags.get('evaluation_result', None),
+                    'run_id': t.info.tags.get('run_id', None),
+                }])
+                trace_df = pd.concat([trace_df, new_row], ignore_index=True)
 
+        print()
+        print("Data for samples tab in comparisons view")
         print(trace_df)
+        print()
+        print("data for experiment top level view")
 if __name__ == '__main__':
     main()
 
