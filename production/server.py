@@ -19,7 +19,7 @@ app = FastAPI()
 if os.getenv("PRODUCTION", "false") != "true":
     # only define an experiment if running in dev mode
     mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
-    mlflow.set_experiment("assistant_dev_server")
+    mlflow.set_experiment("assistant_dev_server_2")
 
 # Enable automatic tracing for OpenAI
 mlflow.openai.autolog()

@@ -10,6 +10,10 @@ client = OpenAI()
 
 @domino_eval_trace_2(evaluator=evaluators.assistant_evaluator)
 def ask_assistant(question: str) -> str:
+    # is very unhelpful half of the time
+    if random() < .5:
+        return "no"
+
     messages = [
         {"role": "system", "content": "You are a helpful assistant who messes up sometimes, but you try your best"},
         {"role": "user", "content": question}

@@ -54,10 +54,22 @@ def domino_eval_trace_2(evaluator):
 
                 # tag trace with the evaluation inputs, outputs, and result
                 # or maybe assessment?
+                eval_label = list(eval_result.keys())[0]
+                eval_value = eval_result[eval_label]
                 client.set_trace_tag(
                     trace.info.request_id,
                     "evaluation_result",
-                    str(eval_result)
+                    str(eval_value)
+                )
+                client.set_trace_tag(
+                    trace.info.request_id,
+                    "evaluation_result_label",
+                    eval_label
+                )
+                client.set_trace_tag(
+                    trace.info.request_id,
+                    "run_id",
+                    run.info.run_id
                 )
 
                 return result
