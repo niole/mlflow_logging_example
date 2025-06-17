@@ -20,7 +20,7 @@ def main():
     if len(exps) == 0:
         raise Exception("assistant_dev_server experiment not found. Run the dev server first.")
 
-    trace_df = pd.DataFrame({'inputs': [], 'outputs': [], 'url': [], 'evaluation_result':[], 'run_id':[] })
+    trace_df = pd.DataFrame({'inputs': [], 'outputs': [], 'url': [], 'evaluation_result_label': [], 'evaluation_result':[], 'run_id':[] })
     exp = exps[0]
     experiment_id = exp.experiment_id
     ts = client.search_traces(
@@ -32,27 +32,32 @@ def main():
     )
 
     for t in ts:
-        for s in t.data.spans:
-            if s.name == "domino_eval_trace":
-                search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
-                eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
+        s = t.data.spans[0]
+        search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
+        eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
 
-                inputs = ','.join(s.inputs['args'])
+        inputs = ','.join(s.inputs['args'])
 
-                new_row = pd.DataFrame([{
-                    'inputs': inputs,
-                    'outputs': t.data.response,
-                    'url': eval_trace_url,
-                    'evaluation_result': t.info.tags.get('evaluation_result', None),
-                    'run_id': t.info.tags.get('run_id', None),
-                }])
-                trace_df = pd.concat([trace_df, new_row], ignore_index=True)
+        new_row = pd.DataFrame([{
+            'inputs': inputs,
+            'outputs': t.data.response,
+            'url': eval_trace_url,
+            'evaluation_result_label': t.info.tags.get('evaluation_result_label', None),
+            'evaluation_result': t.info.tags.get('evaluation_result', None),
+            'run_id': t.info.tags.get('run_id', None),
+        }])
+        trace_df = pd.concat([trace_df, new_row], ignore_index=True)
 
         print()
         print("Data for samples tab in comparisons view")
         print(trace_df)
         print()
         print("data for experiment top level view")
+        # query traces by run_id
+        grouped_by_run = trace_df.groupby('run_id')
+        eval_result_labels = trace_df['evaluation_result_label'].unique()
+
+
 if __name__ == '__main__':
     main()
 
