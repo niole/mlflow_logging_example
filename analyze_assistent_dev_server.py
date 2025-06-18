@@ -2,6 +2,7 @@ import os
 import mlflow
 from mlflow import MlflowClient
 import pandas as pd
+from production.domino_eval_trace import domino_log_evaluation_data
 
 # https://mlflow.org/docs/latest/genai/tracing/search-traces
 
@@ -9,55 +10,74 @@ tracking_uri = f"http://localhost:{os.environ['REV_PROXY_PORT']}"
 mlflow.set_tracking_uri(tracking_uri)
 client = MlflowClient()
 
+def get_experiment_id() -> str:
+    exps = mlflow.search_experiments(filter_string="name = 'assistant_dev_server_2'")
+    if len(exps) == 0:
+        raise Exception("assistant_dev_server experiment not found. Run the dev server first.")
+    return exps[0].experiment_id
+
+"""
+add evaluation results to evaluation traces
+"""
+def log_eval_metrics_to_autologged_traces():
+    experiment_id = get_experiment_id()
+
+    # search for Completion spans
+    completion_traces = mlflow.search_traces(
+        experiment_ids=[experiment_id],
+        filter_string="trace.name = 'Completions'",
+        return_type="list"
+    )
+
+    # log evaluation metrics to the Completion spans
+    for trace in completion_traces:
+        span = trace.search_spans(name = "Completions")[0]
+        domino_log_evaluation_data(
+            span,
+            eval_result_label="helpfulness",
+            eval_result=1, # fake eval result
+            is_prod=False
+        )
+
+
 """
 analyzes outputs from the assistant dev server experiment
+
+The "Completions" evaluations were collected by evaluating traces created with autolog
+after they were collected by calling  "domino_log_evaluation_data"
+
+The "domino_eval_trace" evaluations were collected by using the domino decorator
 
 The UI would have to call logic like this in order to get the trace data
 per run
 """
 def main():
-    exps = mlflow.search_experiments(filter_string="name = 'assistant_dev_server_2'")
-    if len(exps) == 0:
-        raise Exception("assistant_dev_server experiment not found. Run the dev server first.")
+    experiment_id = get_experiment_id()
 
-    trace_df = pd.DataFrame({'inputs': [], 'outputs': [], 'url': [], 'evaluation_result_label': [], 'evaluation_result':[], 'run_id':[] })
-    exp = exps[0]
-    experiment_id = exp.experiment_id
+    # get all traces that are domino eval traces in the experiment
     ts = client.search_traces(
         experiment_ids=[experiment_id],
-        #filter_string="trace.name = 'domino_eval_trace' AND tag.evaluation_result_label = 'helpfulness'"
-        filter_string="tag.evaluation_result_label = 'helpfulness'",
-        #order_by=["timestamp_ms DESC", "tag.evaluation_result DESC"]
-        order_by=["tag.evaluation_result DESC"]
+        filter_string="tags.domino.is_eval = 'True'"
     )
+
+    trace_df = pd.DataFrame({'span_name': [], 'inputs': [], 'outputs': [],  'evaluation_result_label': [], 'evaluation_result':[] })
 
     for t in ts:
         s = t.data.spans[0]
         search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
         eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
 
-        inputs = ','.join(s.inputs['args'])
-
         new_row = pd.DataFrame([{
-            'inputs': inputs,
+            'span_name': s.name,
+            'inputs': s.inputs,
             'outputs': t.data.response,
-            'url': eval_trace_url,
-            'evaluation_result_label': t.info.tags.get('evaluation_result_label', None),
-            'evaluation_result': t.info.tags.get('evaluation_result', None),
-            'run_id': t.info.tags.get('run_id', None),
+            'evaluation_result_label': t.info.tags.get('domino.evaluation_result_label', None),
+            'evaluation_result': t.info.tags.get('domino.evaluation_result', None),
         }])
         trace_df = pd.concat([trace_df, new_row], ignore_index=True)
 
-        print()
-        print("Data for samples tab in comparisons view")
-        print(trace_df)
-        print()
-        print("data for experiment top level view")
-        # query traces by run_id
-        grouped_by_run = trace_df.groupby('run_id')
-        eval_result_labels = trace_df['evaluation_result_label'].unique()
-
+    print(trace_df)
 
 if __name__ == '__main__':
+    log_eval_metrics_to_autologged_traces()
     main()
-

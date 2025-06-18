@@ -8,6 +8,9 @@ import evaluators
 
 client = OpenAI()
 
+# must invole autolog in the file with the functions that you want to trace
+mlflow.openai.autolog()
+
 @domino_eval_trace_2(evaluator=evaluators.assistant_evaluator)
 def ask_assistant(question: str) -> str:
     # is very unhelpful half of the time

@@ -1,4 +1,5 @@
 from mlflow import MlflowClient
+from random import random
 import mlflow
 import os
 
@@ -7,6 +8,28 @@ mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
 mlflow.autolog()
 mlflow.openai.autolog()
+
+def domino_log_evaluation_data(span, eval_result, eval_result_label: str, is_prod: bool = False):
+    client.set_trace_tag(
+        span.request_id,
+        "domino.evaluation_result",
+        str(eval_result)
+    )
+    client.set_trace_tag(
+        span.request_id,
+        "domino.evaluation_result_label",
+        eval_result_label
+    )
+    client.set_trace_tag(
+        span.request_id,
+        "domino.is_production",
+        str(is_prod)
+    )
+    client.set_trace_tag(
+        span.request_id,
+        "domino.is_eval",
+        str(True) # TODO this gets stringified as upper case "True"
+    )
 
 
 """
@@ -34,15 +57,19 @@ def domino_eval_trace_2(evaluator):
 
                 result = do_trace(*args, **kwargs)
 
-                ts = client.search_traces(run_id=run.info.run_id, experiment_ids=[run.info.experiment_id], filter_string="trace.name = 'domino_eval_trace'")
+                ts = client.search_traces(
+                    run_id=run.info.run_id,
+                    experiment_ids=[run.info.experiment_id],
+                    filter_string="trace.name = 'domino_eval_trace'"
+                )
                 if len(ts) == 0:
                     print("no trace was found for the current run, not running the evaluator")
                     return result
 
-                trace = ts[0]
+                trace = ts[0].data.spans[0]
 
-
-                if os.getenv("PRODUCTION", "false") == "true":
+                is_production = os.getenv("PRODUCTION", "false") == "true"
+                if is_production:
                     # TODO if prod mode, save the evaluation inputs and outputs:
                     # (experiment_id, run_id, inputs, result, eval_result)
                     # and user can use their evaluator utility library in a job
@@ -50,26 +77,17 @@ def domino_eval_trace_2(evaluator):
                     return result
 
                 # if dev mode, run the evaluation inline
-                eval_result = evaluator(inputs, result)
+                eval_result = evaluator(trace.inputs, trace.outputs)
 
                 # tag trace with the evaluation inputs, outputs, and result
                 # or maybe assessment?
                 eval_label = list(eval_result.keys())[0]
                 eval_value = eval_result[eval_label]
-                client.set_trace_tag(
-                    trace.info.request_id,
-                    "evaluation_result",
-                    str(eval_value)
-                )
-                client.set_trace_tag(
-                    trace.info.request_id,
-                    "evaluation_result_label",
-                    eval_label
-                )
-                client.set_trace_tag(
-                    trace.info.request_id,
-                    "run_id",
-                    run.info.run_id
+                domino_log_evaluation_data(
+                    trace,
+                    eval_result_label=eval_label,
+                    eval_result=eval_value,
+                    is_prod=is_production
                 )
 
                 return result

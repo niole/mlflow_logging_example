@@ -17,3 +17,11 @@ will be logged in dev mode
 - how to save production data and where to send it?
 - what if there are multiple components in the system, like an agent with
 mcp servers that it interacts with? can we make the tracing contain all components?
+- what if we have a manually created trace and we want to log multiple span evaluations to it?
+
+- - use vanilla open ai library
+- - do identical think using langchain to call a model in a chat chain
+- - look at the arguments
+- -
+- -
+-

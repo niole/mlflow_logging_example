@@ -91,5 +91,3 @@ overview, model metrics, and system metrics seem to be fetched always on page lo
 /ajax-api/2.0/mlflow/runs/get?run_id=219ba0a944254b66a7e47b690df16d9f
 
 # questions
-
-- can we get an example script that logs everything important to customers?
