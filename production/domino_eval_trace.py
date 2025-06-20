@@ -1,46 +1,14 @@
 from mlflow import MlflowClient
 from random import random
-from typing import Optional
+from typing import Optional, Callable, Any
 import mlflow
+import json
 import os
 import yaml
 
 # can't find exp if tracking uri not set in file
 mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
-
-"""
-This decorator lets users add a named span in the middle of a trace
-This is meant to add custom spans to autologged traces
-This will only add spans if there is an active trace
-
-TODO maybe add optional inline evaluators?
-
-TODO original input of parent trace and span output?
-
-we might want data from multiple spans in one evaluation, multiple arguments to evaluator
-"""
-def append_domino_span(
-        span_name: str,
-        is_prod: bool = False,
-        extract_input_field: Optional[str] = None,
-        extract_output_field: Optional[str] = None
-    ):
-    def decorator(func):
-
-        def wrapper(*args, **kwargs):
-            with mlflow.start_span(span_name) as parent_span:
-                inputs = { 'args': args, 'kwargs': kwargs }
-                parent_span.set_inputs(inputs)
-                result = func(*args, **kwargs)
-                parent_span.set_outputs(result)
-
-                _add_domino_tags(parent_span, is_prod, extract_input_field, extract_output_field)
-
-                return result
-
-        return wrapper
-    return decorator
 
 def init_domino_tracing(experiment_name: str, is_production: bool = False):
     # TODO is this a perf issue?
@@ -78,6 +46,45 @@ def init_domino_tracing(experiment_name: str, is_production: bool = False):
             params=params
         )
 
+"""
+This decorator lets users add a named span in the middle of a trace
+This is meant to add custom spans to autologged traces
+This will only add spans if there is an active trace
+
+we might want data from multiple spans in one evaluation, multiple arguments to evaluator
+"""
+def append_domino_span(
+        name: str,
+        evaluation_result_label: Optional[str] = None,
+        evaluator: Optional[Callable[[Any, Any], Any]] = None,
+        extract_input_field: Optional[str] = None,
+        extract_output_field: Optional[str] = None
+    ):
+    def decorator(func):
+
+        def wrapper(*args, **kwargs):
+            is_production=os.getenv("PRODUCTION", "false") == "true"
+            with mlflow.start_span(name) as parent_span:
+                inputs = { 'args': args, 'kwargs': kwargs }
+                parent_span.set_inputs(inputs)
+                result = func(*args, **kwargs)
+                parent_span.set_outputs(result)
+
+                eval_result = do_evaluation(parent_span, evaluator, is_production)
+
+                domino_log_evaluation_data(
+                    parent_span,
+                    eval_result,
+                    evaluation_result_label,
+                    is_production,
+                    extract_input_field,
+                    extract_output_field,
+                )
+
+                return result
+
+        return wrapper
+    return decorator
 
 """
 This logs evaluation data and metdata to a span. These spans can be used to
@@ -91,29 +98,31 @@ when it is rendered in the Domino UI, e.g. "messages.1.content"
 def domino_log_evaluation_data(
         span,
         eval_result,
-        eval_result_label: str,
-        is_prod: bool = False,
+        eval_result_label: Optional[str] = None,
+        is_production: bool = False,
         extract_input_field: Optional[str] = None,
         extract_output_field: Optional[str] = None
     ):
     # can only do this if the span is status = 'OK' or 'ERROR'
-    client.set_trace_tag(
-        span.request_id,
-        "domino.evaluation_result",
-        str(eval_result)
-    )
-    client.set_trace_tag(
-        span.request_id,
-        "domino.evaluation_result_label",
-        eval_result_label
-    )
-    _add_domino_tags(span, is_prod, extract_input_field, extract_output_field)
+    if eval_result:
+        client.set_trace_tag(
+            span.request_id,
+            "domino.evaluation_result",
+            str(eval_result)
+        )
+        client.set_trace_tag(
+            span.request_id,
+            "domino.evaluation_result_label",
+            eval_result_label or "evaluation_result"
+        )
+    _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None)
 
 def _add_domino_tags(
         span,
         is_prod: bool = False,
         extract_input_field: Optional[str] = None,
-        extract_output_field: Optional[str] = None
+        extract_output_field: Optional[str] = None,
+        is_eval: bool = False
     ):
     client.set_trace_tag(
         span.request_id,
@@ -123,7 +132,7 @@ def _add_domino_tags(
     client.set_trace_tag(
         span.request_id,
         "domino.is_eval",
-        str(True) # TODO this gets stringified as upper case "True"
+        json.dumps(is_eval)
     )
 
     if extract_input_field:
@@ -140,6 +149,15 @@ def _add_domino_tags(
             extract_output_field
         )
 
+def do_evaluation(
+        span,
+        evaluator: Optional[Callable[[Any, Any], Any]],
+        is_production: bool):
+
+        if not is_production and evaluator:
+            eval_result = evaluator(span.inputs, span.outputs)
+        return None
+
 """
 This would be defined in a domino utility library
 
@@ -151,43 +169,40 @@ instead saved somwehere. I don't know where yet: a dataset?
 
 user can provide input and output formatter for formatting what's on the trace
 and the evaluation result inputs
-
-TODO maybe make inline evaluators optional?
-
-TODO remove inline input formatting
-
-TODO maybe don't do evaluation in prod
 """
-def domino_eval_trace_2(evaluator, input_formatter = lambda x: x, output_formatter = lambda x: x):
+def start_domino_trace(
+        name: str,
+        evaluator: Optional[Callable[[Any, Any], Any]] = None,
+        evaluation_label: Optional[str] = None,
+        extract_input_field: Optional[str] = None,
+        extract_output_field: Optional[str] = None
+    ):
     # trace_parent_id? w3c context propagation with mlflow
 
     def decorator(func):
 
         def wrapper(*args, **kwargs):
+            is_production=os.getenv("PRODUCTION", "false") == "true"
             inputs = { 'args': args, 'kwargs': kwargs }
 
-            parent_trace = client.start_trace("domino_eval_trace", inputs=input_formatter(inputs))
+            parent_trace = client.start_trace(name, inputs=inputs)
             result = func(*args, **kwargs)
-            client.end_trace(parent_trace.trace_id, outputs=output_formatter(result))
+            client.end_trace(parent_trace.trace_id, outputs=result)
 
             # TODO error handling?
             trace = client.get_trace(parent_trace.trace_id).data.spans[0]
 
-            # TODO if dev mode, run the evaluation inline
-            eval_result = evaluator(trace.inputs, trace.outputs)
-
-            # TODO can we make assumptions about proudction env var?
-            is_production = os.getenv("PRODUCTION", "false") == "true"
+            eval_result = do_evaluation(trace, evaluator, is_production)
 
             # tag trace with the evaluation inputs, outputs, and result
             # or maybe assessment?
-            eval_label = list(eval_result.keys())[0]
-            eval_value = eval_result[eval_label]
             domino_log_evaluation_data(
                 trace,
-                eval_result_label=eval_label,
-                eval_result=eval_value,
-                is_prod=is_production
+                eval_result_label=evaluation_label,
+                eval_result=result,
+                is_production=is_production,
+                extract_input_field=extract_input_field,
+                extract_output_field=extract_output_field
             )
 
             return result

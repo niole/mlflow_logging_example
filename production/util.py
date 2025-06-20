@@ -3,7 +3,7 @@ from random import random, randint
 from mlflow.entities import SpanType
 from openai import OpenAI
 import os
-from  domino_eval_trace import domino_eval_trace_2, append_domino_span
+from  domino_eval_trace import start_domino_trace, append_domino_span
 import evaluators
 from langchain.chat_models import init_chat_model
 from tools import tools, tools_table
@@ -21,7 +21,7 @@ llm = init_chat_model(
 llm_with_tools = llm.bind_tools(tools, tool_choice="any")
 
 
-@domino_eval_trace_2(evaluator=evaluators.assistant_evaluator, input_formatter=lambda x: x['args'][0])
+@start_domino_trace("domino_eval_trace", evaluator=evaluators.assistant_evaluator)
 def ask_assistant(question: str) -> str:
     # is very unhelpful half of the time
     content = llm_with_tools.invoke(question)
