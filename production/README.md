@@ -23,8 +23,7 @@ mcp servers that it interacts with? can we make the tracing contain all componen
 - - do identical think using langchain to call a model in a chat chain
 - - look at the arguments
 - if th
-- -
--
+- need to support several evaluation metrics on same span
 
 ## Observations
 -  if there are multiple span with the same name, mlflow renders them with unique names

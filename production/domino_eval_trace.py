@@ -61,7 +61,7 @@ evaluate the AI System's performance
 extract_input_field: an optional dot separated string that specifies what subfield to access in the input
 when it is rendered in the Domino UI
 extract_output_field: an optional dot separated string that specifies what subfield to access in the output
-when it is rendered in the Domino UI, e.g. "messages.[1].content"
+when it is rendered in the Domino UI, e.g. "messages.1.content"
 """
 def domino_log_evaluation_data(
         span,
