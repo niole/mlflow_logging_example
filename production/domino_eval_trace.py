@@ -8,11 +8,6 @@ mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
 
 def init_domino_tracing(experiment_name: str):
-    # in prod, don't create run, but do log
-    # traces to model
-    # ... if there is no run, how does mlflow autolog know ot log
-    # the traces to the LoggedModel?
-
     mlflow.openai.autolog()
     mlflow.langchain.autolog()
     mlflow.autolog()
