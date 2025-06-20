@@ -1,5 +1,6 @@
 from mlflow import MlflowClient
 from random import random
+from typing import Optional
 import mlflow
 import os
 
@@ -29,7 +30,23 @@ def init_domino_tracing(experiment_name: str):
     mlflow.set_active_model(model_id=model.model_id)
 
 
-def domino_log_evaluation_data(span, eval_result, eval_result_label: str, is_prod: bool = False):
+"""
+This logs evaluation data and metdata to a span. These spans can be used to
+evaluate the AI System's performance
+
+extract_input_field: an optional dot separated string that specifies what subfield to access in the input
+when it is rendered in the Domino UI
+extract_output_field: an optional dot separated string that specifies what subfield to access in the output
+when it is rendered in the Domino UI, e.g. "messages.[1].content"
+"""
+def domino_log_evaluation_data(
+        span,
+        eval_result,
+        eval_result_label: str,
+        is_prod: bool = False,
+        extract_input_field: Optional[str] = None,
+        extract_output_field: Optional[str] = None
+    ):
     # can only do this if the span is status = 'OK' or 'ERROR'
     client.set_trace_tag(
         span.request_id,
@@ -51,6 +68,20 @@ def domino_log_evaluation_data(span, eval_result, eval_result_label: str, is_pro
         "domino.is_eval",
         str(True) # TODO this gets stringified as upper case "True"
     )
+
+    if extract_input_field:
+        client.set_trace_tag(
+            span.request_id,
+            "domino.extract_input_field",
+            extract_input_field
+        )
+
+    if extract_output_field:
+        client.set_trace_tag(
+            span.request_id,
+            "domino.extract_output_field",
+            extract_output_field
+        )
 
 
 """

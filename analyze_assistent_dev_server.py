@@ -41,7 +41,8 @@ def log_eval_metrics_to_autologged_traces():
             span,
             eval_result_label="helpfulness",
             eval_result=1, # fake eval result
-            is_prod=False
+            is_prod=False,
+            extract_input_field="messages.1.content"
         )
 
 
@@ -71,10 +72,29 @@ def main():
         s = t.data.spans[0]
         search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
         eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
+        extract_input_field = t.info.tags.get('domino.extract_input_field', None),
+
+        inputs = s.inputs
+
+        # The UI would write code like this to extract the subfields of an input or output
+        # on a trace if "extract_input_field" is set
+        if extract_input_field[0] is not None:
+            subpaths = extract_input_field[0].split('.')
+            for path in subpaths:
+                try:
+                    i = int(path)
+                    inputs = inputs[i]
+                    continue
+                except:
+                    # it's not an index
+                    pass
+
+                inputs = inputs[path]
+
 
         new_row = pd.DataFrame([{
             'span_name': s.name,
-            'inputs': s.inputs,
+            'inputs': inputs,
             'outputs': t.data.response,
             'evaluation_result_label': t.info.tags.get('domino.evaluation_result_label', None),
             'evaluation_result': t.info.tags.get('domino.evaluation_result', None),
@@ -82,8 +102,6 @@ def main():
         trace_df = pd.concat([trace_df, new_row], ignore_index=True)
 
     print(trace_df.head())
-
-    print(trace_df[trace_df['outputs']].str.contains('square'))
 
 if __name__ == '__main__':
     log_eval_metrics_to_autologged_traces()
