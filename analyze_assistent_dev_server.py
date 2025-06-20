@@ -23,6 +23,7 @@ def log_eval_metrics_to_autologged_traces():
     experiment_id = get_experiment_id()
 
     # search for Completion spans
+    # this doesn't actually return all spans, i guess just traces?
     completion_traces = mlflow.search_traces(
         experiment_ids=[experiment_id],
         filter_string="trace.name = 'Completions'",

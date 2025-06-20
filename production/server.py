@@ -18,7 +18,7 @@ class Question(BaseModel):
 app = FastAPI()
 
 # all traces go to the same experiment, but may be linked to different ai system external models
-init_domino_tracing("assistant_dev_server_2")
+init_domino_tracing("assistant_dev_server_3", is_production=os.getenv("PRODUCTION", "false") == "true")
 
 @app.get("/")
 async def answer_question():
