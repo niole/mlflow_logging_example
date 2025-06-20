@@ -61,8 +61,11 @@ trace and then evaluate the inputs/outputs of
 
 if the app is running in production, the evaluation is not run inline, but the inputs and outputs are
 instead saved somwehere. I don't know where yet: a dataset?
+
+user can provide input and output formatter for formatting what's on the trace
+and the evaluation result inputs
 """
-def domino_eval_trace_2(evaluator):
+def domino_eval_trace_2(evaluator, input_formatter = lambda x: x, output_formatter = lambda x: x):
     # trace_parent_id? w3c context propagation with mlflow
 
     def decorator(func):
@@ -70,9 +73,9 @@ def domino_eval_trace_2(evaluator):
         def wrapper(*args, **kwargs):
             inputs = { 'args': args, 'kwargs': kwargs }
 
-            parent_trace = client.start_trace("domino_eval_trace", inputs=inputs)
+            parent_trace = client.start_trace("domino_eval_trace", inputs=input_formatter(inputs))
             result = func(*args, **kwargs)
-            client.end_trace(parent_trace.trace_id, outputs=result)
+            client.end_trace(parent_trace.trace_id, outputs=output_formatter(result))
 
             # TODO error handling?
             trace = client.get_trace(parent_trace.trace_id).data.spans[0]

@@ -21,7 +21,7 @@ llm = init_chat_model(
 llm_with_tools = llm.bind_tools(tools, tool_choice="any")
 
 
-@domino_eval_trace_2(evaluator=evaluators.assistant_evaluator)
+@domino_eval_trace_2(evaluator=evaluators.assistant_evaluator, input_formatter=lambda x: x['args'][0])
 def ask_assistant(question: str) -> str:
     # is very unhelpful half of the time
     content = llm_with_tools.invoke(question)
