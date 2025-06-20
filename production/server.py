@@ -8,6 +8,7 @@ from pydantic import BaseModel
 import util
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from domino_eval_trace import init_domino_tracing
 
 load_dotenv()
 
@@ -16,14 +17,7 @@ class Question(BaseModel):
 
 app = FastAPI()
 
-if os.getenv("PRODUCTION", "false") != "true":
-    # only define an experiment if running in dev mode
-    mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
-    mlflow.set_experiment("assistant_dev_server_2")
-
-# Enable automatic tracing for OpenAI
-mlflow.openai.autolog()
-
+init_domino_tracing("assistant_dev_server_2", os.getenv("PRODUCTION", "false") != "true")
 
 @app.get("/")
 async def answer_question():

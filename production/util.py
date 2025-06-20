@@ -11,6 +11,7 @@ from tools import tools, tools_table
 # must invole autolog in the file with the functions that you want to trace
 mlflow.openai.autolog()
 mlflow.langchain.autolog()
+mlflow.autolog()
 
 client = OpenAI()
 llm = init_chat_model(

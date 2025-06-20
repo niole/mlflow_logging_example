@@ -22,6 +22,11 @@ mcp servers that it interacts with? can we make the tracing contain all componen
 - - use vanilla open ai library
 - - do identical think using langchain to call a model in a chat chain
 - - look at the arguments
-- -
+- if th
 - -
 -
+
+## Observations
+-  if there are multiple span with the same name, mlflow renders them with unique names
+in the UI which may be confusing to users
+- how to make production model and is production env var configuarble to user

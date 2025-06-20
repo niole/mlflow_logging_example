@@ -6,10 +6,36 @@ import os
 # can't find exp if tracking uri not set in file
 mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
-mlflow.autolog()
-mlflow.openai.autolog()
+
+def init_domino_tracing(experiment_name: str):
+    # in prod, don't create run, but do log
+    # traces to model
+    # ... if there is no run, how does mlflow autolog know ot log
+    # the traces to the LoggedModel?
+
+    mlflow.openai.autolog()
+    mlflow.langchain.autolog()
+    mlflow.autolog()
+
+    mlflow.set_experiment(experiment_name)
+    mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
+
+    # NOTE: user provides the model name if they want to link traces to a
+    # specific AI System. We will recommend this for production, but not for dev
+    # evaluation
+    model_name = os.getenv("DOMINO_AI_SYSTEM_MODEL_NAME", None)
+
+    mlflow.create_external_model(
+        name=model_name,
+        model_type="AI System",
+        params={} # TODO configuration will likely be the config.yaml contents
+    )
+
+    mlflow.set_active_model(name=experiment_name)
+
 
 def domino_log_evaluation_data(span, eval_result, eval_result_label: str, is_prod: bool = False):
+    # can only do this if the span is status = 'OK' or 'ERROR'
     client.set_trace_tag(
         span.request_id,
         "domino.evaluation_result",
@@ -46,51 +72,34 @@ def domino_eval_trace_2(evaluator):
 
     def decorator(func):
 
-        @mlflow.trace(name="domino_eval_trace")
-        def do_trace(*args, **kwargs):
-            return func(*args, **kwargs)
-
-
         def wrapper(*args, **kwargs):
-            with mlflow.start_run() as run:
-                inputs = { 'args': args, 'kwargs': kwargs }
+            inputs = { 'args': args, 'kwargs': kwargs }
 
-                result = do_trace(*args, **kwargs)
+            parent_trace = client.start_trace("domino_eval_trace", inputs=inputs)
+            result = func(*args, **kwargs)
+            client.end_trace(parent_trace.trace_id, outputs=result)
 
-                ts = client.search_traces(
-                    run_id=run.info.run_id,
-                    experiment_ids=[run.info.experiment_id],
-                    filter_string="trace.name = 'domino_eval_trace'"
-                )
-                if len(ts) == 0:
-                    print("no trace was found for the current run, not running the evaluator")
-                    return result
+            # TODO error handling?
+            trace = client.get_trace(parent_trace.trace_id).data.spans[0]
 
-                trace = ts[0].data.spans[0]
+            # if dev mode, run the evaluation inline
+            eval_result = evaluator(trace.inputs, trace.outputs)
 
-                is_production = os.getenv("PRODUCTION", "false") == "true"
-                if is_production:
-                    # TODO if prod mode, save the evaluation inputs and outputs:
-                    # (experiment_id, run_id, inputs, result, eval_result)
-                    # and user can use their evaluator utility library in a job
-                    # where they would run it on that data
-                    return result
+            # TODO can we make assumptions about proudction env var?
+            is_production = os.getenv("PRODUCTION", "false") == "true"
 
-                # if dev mode, run the evaluation inline
-                eval_result = evaluator(trace.inputs, trace.outputs)
+            # tag trace with the evaluation inputs, outputs, and result
+            # or maybe assessment?
+            eval_label = list(eval_result.keys())[0]
+            eval_value = eval_result[eval_label]
+            domino_log_evaluation_data(
+                trace,
+                eval_result_label=eval_label,
+                eval_result=eval_value,
+                is_prod=is_production
+            )
 
-                # tag trace with the evaluation inputs, outputs, and result
-                # or maybe assessment?
-                eval_label = list(eval_result.keys())[0]
-                eval_value = eval_result[eval_label]
-                domino_log_evaluation_data(
-                    trace,
-                    eval_result_label=eval_label,
-                    eval_result=eval_value,
-                    is_prod=is_production
-                )
-
-                return result
+            return result
 
         return wrapper
     return decorator

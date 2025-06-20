@@ -81,7 +81,9 @@ def main():
         }])
         trace_df = pd.concat([trace_df, new_row], ignore_index=True)
 
-    print(trace_df)
+    print(trace_df.head())
+
+    print(trace_df[trace_df['outputs']].str.contains('square'))
 
 if __name__ == '__main__':
     log_eval_metrics_to_autologged_traces()
