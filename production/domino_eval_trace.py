@@ -8,6 +8,30 @@ import os
 mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
 
+"""
+This decorator lets users add a named span in the middle of a trace
+This is meant to add custom spans to autologged traces
+This will only add spans if there is an active trace
+
+TODO maybe add optional inline evaluators?
+"""
+def append_domino_span(span_name: str, is_prod: bool = False, extract_input_field: Optional[str] = None, extract_output_field: Optional[str] = None):
+    def decorator(func):
+
+        def wrapper(*args, **kwargs):
+            with mlflow.start_span(span_name) as parent_span:
+                inputs = { 'args': args, 'kwargs': kwargs }
+                parent_span.set_inputs(inputs)
+                result = func(*args, **kwargs)
+                parent_span.set_outputs(result)
+
+                _add_domino_tags(parent_span, is_prod, extract_input_field, extract_output_field)
+
+                return result
+
+        return wrapper
+    return decorator
+
 def init_domino_tracing(experiment_name: str):
     mlflow.openai.autolog()
     mlflow.langchain.autolog()
@@ -58,6 +82,14 @@ def domino_log_evaluation_data(
         "domino.evaluation_result_label",
         eval_result_label
     )
+    _add_domino_tags(span, is_prod, extract_input_field, extract_output_field)
+
+def _add_domino_tags(
+        span,
+        is_prod: bool = False,
+        extract_input_field: Optional[str] = None,
+        extract_output_field: Optional[str] = None
+    ):
     client.set_trace_tag(
         span.request_id,
         "domino.is_production",
@@ -83,7 +115,6 @@ def domino_log_evaluation_data(
             extract_output_field
         )
 
-
 """
 This would be defined in a domino utility library
 
@@ -95,6 +126,8 @@ instead saved somwehere. I don't know where yet: a dataset?
 
 user can provide input and output formatter for formatting what's on the trace
 and the evaluation result inputs
+
+TODO maybe make inline evaluators optional?
 """
 def domino_eval_trace_2(evaluator, input_formatter = lambda x: x, output_formatter = lambda x: x):
     # trace_parent_id? w3c context propagation with mlflow

@@ -3,7 +3,7 @@ from random import random, randint
 from mlflow.entities import SpanType
 from openai import OpenAI
 import os
-from  domino_eval_trace import domino_eval_trace_2
+from  domino_eval_trace import domino_eval_trace_2, append_domino_span
 import evaluators
 from langchain.chat_models import init_chat_model
 from tools import tools, tools_table
@@ -31,7 +31,7 @@ def ask_assistant(question: str) -> str:
     # and used the tracing to figure out the bug
     return tools_table.get(tool_call["name"], lambda x: "I couldn't help with that").invoke(tool_call["args"])
 
-@mlflow.trace(name="RAG Pipeline", span_type=SpanType.CHAIN)
+@append_domino_span("my_answer_question_span")
 def answer_question(question: str) -> str:
     """A simple RAG pipeline with manual tracing."""
 
