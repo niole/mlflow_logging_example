@@ -47,6 +47,58 @@ def init_domino_tracing(experiment_name: str, is_production: bool = False):
         )
 
 """
+This would be defined in a domino utility library
+
+the end user uses this as a decorator on the AI system call, which they want to
+trace and then evaluate the inputs/outputs of
+
+if the app is running in production, the evaluation is not run inline, but the inputs and outputs are
+instead saved somwehere. I don't know where yet: a dataset?
+
+user can provide input and output formatter for formatting what's on the trace
+and the evaluation result inputs
+"""
+def start_domino_trace(
+        name: str,
+        evaluator: Optional[Callable[[Any, Any], Any]] = None,
+        evaluation_label: Optional[str] = None,
+        extract_input_field: Optional[str] = None,
+        extract_output_field: Optional[str] = None
+    ):
+    # trace_parent_id? w3c context propagation with mlflow
+
+    def decorator(func):
+
+        def wrapper(*args, **kwargs):
+            is_production=os.getenv("PRODUCTION", "false") == "true"
+            inputs = { 'args': args, 'kwargs': kwargs }
+
+            parent_trace = client.start_trace(name, inputs=inputs)
+            result = func(*args, **kwargs)
+            client.end_trace(parent_trace.trace_id, outputs=result)
+
+            # TODO error handling?
+            trace = client.get_trace(parent_trace.trace_id).data.spans[0]
+
+            eval_result = do_evaluation(trace, evaluator, is_production)
+
+            # tag trace with the evaluation inputs, outputs, and result
+            # or maybe assessment?
+            domino_log_evaluation_data(
+                trace,
+                eval_result_label=evaluation_label,
+                eval_result=result,
+                is_production=is_production,
+                extract_input_field=extract_input_field,
+                extract_output_field=extract_output_field
+            )
+
+            return result
+
+        return wrapper
+    return decorator
+
+"""
 This decorator lets users add a named span in the middle of a trace
 This is meant to add custom spans to autologged traces
 This will only add spans if there is an active trace
@@ -157,56 +209,3 @@ def do_evaluation(
         if not is_production and evaluator:
             eval_result = evaluator(span.inputs, span.outputs)
         return None
-
-"""
-This would be defined in a domino utility library
-
-the end user uses this as a decorator on the AI system call, which they want to
-trace and then evaluate the inputs/outputs of
-
-if the app is running in production, the evaluation is not run inline, but the inputs and outputs are
-instead saved somwehere. I don't know where yet: a dataset?
-
-user can provide input and output formatter for formatting what's on the trace
-and the evaluation result inputs
-"""
-def start_domino_trace(
-        name: str,
-        evaluator: Optional[Callable[[Any, Any], Any]] = None,
-        evaluation_label: Optional[str] = None,
-        extract_input_field: Optional[str] = None,
-        extract_output_field: Optional[str] = None
-    ):
-    # trace_parent_id? w3c context propagation with mlflow
-
-    def decorator(func):
-
-        def wrapper(*args, **kwargs):
-            is_production=os.getenv("PRODUCTION", "false") == "true"
-            inputs = { 'args': args, 'kwargs': kwargs }
-
-            parent_trace = client.start_trace(name, inputs=inputs)
-            result = func(*args, **kwargs)
-            client.end_trace(parent_trace.trace_id, outputs=result)
-
-            # TODO error handling?
-            trace = client.get_trace(parent_trace.trace_id).data.spans[0]
-
-            eval_result = do_evaluation(trace, evaluator, is_production)
-
-            # tag trace with the evaluation inputs, outputs, and result
-            # or maybe assessment?
-            domino_log_evaluation_data(
-                trace,
-                eval_result_label=evaluation_label,
-                eval_result=result,
-                is_production=is_production,
-                extract_input_field=extract_input_field,
-                extract_output_field=extract_output_field
-            )
-
-            return result
-
-        return wrapper
-    return decorator
-
