@@ -30,8 +30,13 @@ def log_eval_metrics_to_autologged_traces():
     )
 
     # log evaluation metrics to the Completion spans
+    # if a user writes this evaluation code and then they change the code path to have multiple Completions
+    # traces, open ai may modify the Completion trace names in the mlflow ui to make them unique
+    # how will a user know what span name to look for if they don't look at the mlflow dashboard?
+    # btw we don't expose the dashboard by default in the domino UI
     for trace in completion_traces:
-        span = trace.search_spans(name = "Completions")[0]
+        spans = trace.search_spans(name = "Completions")
+        span = spans[0]
         domino_log_evaluation_data(
             span,
             eval_result_label="helpfulness",
