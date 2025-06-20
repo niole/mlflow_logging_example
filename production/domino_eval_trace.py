@@ -41,7 +41,7 @@ def init_domino_tracing(experiment_name: str, is_production: bool = False):
 
         # if dev mode, we create a model, which represents the AI System
         # but traces will not be linked to it
-        model = mlflow.create_external_model(
+        mlflow.create_external_model(
             model_type="AI System",
             params=params
         )
@@ -157,15 +157,17 @@ def domino_log_evaluation_data(
     ):
     # can only do this if the span is status = 'OK' or 'ERROR'
     if eval_result:
+        label = eval_result_label or "evaluation_result"
+
         client.set_trace_tag(
             span.request_id,
-            "domino.evaluation_result",
+            f"domino.evaluation_result.{label}",
             str(eval_result)
         )
         client.set_trace_tag(
             span.request_id,
             "domino.evaluation_result_label",
-            eval_result_label or "evaluation_result"
+            label
         )
     _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None)
 
