@@ -20,13 +20,13 @@ def init_domino_tracing(experiment_name: str):
     # evaluation
     model_name = os.getenv("DOMINO_AI_SYSTEM_MODEL_NAME", None)
 
-    mlflow.create_external_model(
+    model = mlflow.create_external_model(
         name=model_name,
         model_type="AI System",
         params={} # TODO configuration will likely be the config.yaml contents
     )
 
-    mlflow.set_active_model(name=experiment_name)
+    mlflow.set_active_model(model_id=model.model_id)
 
 
 def domino_log_evaluation_data(span, eval_result, eval_result_label: str, is_prod: bool = False):
