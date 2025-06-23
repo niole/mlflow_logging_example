@@ -81,17 +81,21 @@ def start_domino_trace(
             trace = client.get_trace(parent_trace.trace_id).data.spans[0]
 
             eval_result = do_evaluation(trace, evaluator, is_production)
+            if eval_result:
+                for (k, v) in eval_result.items():
 
-            # tag trace with the evaluation inputs, outputs, and result
-            # or maybe assessment?
-            domino_log_evaluation_data(
-                trace,
-                eval_result_label=evaluation_label,
-                eval_result=result,
-                is_production=is_production,
-                extract_input_field=extract_input_field,
-                extract_output_field=extract_output_field
-            )
+                    # tag trace with the evaluation inputs, outputs, and result
+                    # or maybe assessment?
+                    domino_log_evaluation_data(
+                        trace,
+                        eval_result_label=k,
+                        eval_result=v,
+                        is_production=is_production,
+                        extract_input_field=extract_input_field,
+                        extract_output_field=extract_output_field
+                    )
+            else:
+                _add_domino_tags(trace, is_production, extract_input_field, extract_output_field, is_eval=False)
 
             return result
 
@@ -124,15 +128,18 @@ def append_domino_span(
 
                 eval_result = do_evaluation(parent_span, evaluator, is_production)
 
-                domino_log_evaluation_data(
-                    parent_span,
-                    eval_result,
-                    evaluation_result_label,
-                    is_production,
-                    extract_input_field,
-                    extract_output_field,
-                )
-
+                if eval_result:
+                    for (k, v) in eval_result.items():
+                        domino_log_evaluation_data(
+                            parent_span,
+                            eval_result=v,
+                            eval_result_label=k,
+                            is_production=is_production,
+                            extract_input_field=extract_input_field,
+                            extract_output_field=extract_output_field,
+                        )
+                else:
+                    _add_domino_tags(parent_span, is_production, extract_input_field, extract_output_field, is_eval=False)
                 return result
 
         return wrapper
@@ -161,8 +168,8 @@ def domino_log_evaluation_data(
 
         client.set_trace_tag(
             span.request_id,
-            f"domino.evaluation_result.{label}",
-            str(eval_result)
+            f"domino.evaluation_result",
+            eval_result
         )
         client.set_trace_tag(
             span.request_id,
@@ -206,8 +213,8 @@ def _add_domino_tags(
 def do_evaluation(
         span,
         evaluator: Optional[Callable[[Any, Any], Any]],
-        is_production: bool):
+        is_production: bool) -> Optional[dict]:
 
         if not is_production and evaluator:
-            eval_result = evaluator(span.inputs, span.outputs)
+            return evaluator(span.inputs, span.outputs)
         return None
