@@ -1,9 +1,9 @@
+import os
 from mlflow import MlflowClient
 from random import random
 from typing import Optional, Callable, Any
 import mlflow
 import json
-import os
 import yaml
 
 # can't find exp if tracking uri not set in file
@@ -15,6 +15,8 @@ def init_domino_tracing(experiment_name: str, is_production: bool = False):
     mlflow.openai.autolog()
     mlflow.langchain.autolog()
     mlflow.autolog()
+
+    mlflow.log_metric("niole", 1)
 
     mlflow.set_experiment(experiment_name)
     mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
@@ -73,12 +75,16 @@ def start_domino_trace(
             is_production=os.getenv("PRODUCTION", "false") == "true"
             inputs = { 'args': args, 'kwargs': kwargs }
 
+            print("NIOLE STAERT TRACE")
             parent_trace = client.start_trace(name, inputs=inputs)
             result = func(*args, **kwargs)
+            print("NIOLE END TRACE")
             client.end_trace(parent_trace.trace_id, outputs=result)
 
+            print("NIOLE GET TRACE")
             # TODO error handling?
             trace = client.get_trace(parent_trace.trace_id).data.spans[0]
+            print("NIOLE GET TRACE 2")
 
             eval_result = do_evaluation(trace, evaluator, is_production)
             if eval_result:
