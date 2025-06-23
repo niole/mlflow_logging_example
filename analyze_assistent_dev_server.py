@@ -11,7 +11,7 @@ mlflow.set_tracking_uri(tracking_uri)
 client = MlflowClient()
 
 def get_experiment_id() -> str:
-    exps = mlflow.search_experiments(filter_string="name = 'assistant_dev_server_2'")
+    exps = mlflow.search_experiments(filter_string="name = 'assistant_dev_server_3'")
     if len(exps) == 0:
         raise Exception("assistant_dev_server experiment not found. Run the dev server first.")
     return exps[0].experiment_id
@@ -42,7 +42,7 @@ def log_eval_metrics_to_autologged_traces():
             span,
             eval_result_label="helpfulness",
             eval_result=1, # fake eval result
-            is_prod=False,
+            is_production=False,
             extract_input_field="messages.1.content"
         )
 
