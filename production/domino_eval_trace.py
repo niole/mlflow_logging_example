@@ -1,25 +1,47 @@
 import os
 from mlflow import MlflowClient
-from random import random
 from typing import Optional, Callable, Any
 import mlflow
 import json
 import yaml
+import logging
 
 # can't find exp if tracking uri not set in file
 mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
 
-def init_domino_tracing(experiment_name: str, is_production: bool = False):
-    # TODO is this a perf issue?
-    mlflow.openai.autolog()
-    mlflow.langchain.autolog()
-    mlflow.autolog()
+def init_domino_tracing(
+        experiment_name: str,
+        ai_frameworks: list[str] = list(),
+        is_production: bool = False,
+        ai_system_config_path: str = "./ai_system_config.yaml"):
+    """Initialize code based Domino tracing for an AI System component.
+    If in dev mode, it is expected that a run has been intialized. All traces will be linked to that run and a
+    LoggedModel will be created, which represents the AI System component and will contain the configuration
+    defined in the ai_system_config.yaml.
 
-    mlflow.log_metric("niole", 1)
+    If in prod mode, a DOMINO_AI_SYSTEM_MODEL_ID is required and represents the production AI System
+    component. All traces will be linked to that model. No run is required.
+
+    Args:
+        experiment_name: the name of the Mlflow experiment to log traces to
+        ai_frameworks: the ai frameworks to initialize autologging for, see https://mlflow.org/docs/latest/ml/tracking/autolog#supported-libraries
+        is_production: whether or not this component is running in production mode
+        ai_system_config_path: the path to the ai system configuration file
+    """
+
+    # set production environment variable
+    os.environ["DOMINO_EVALUATION_LOGGING_IS_PROD"] = json.dumps(is_production)
+
+    # initialize autologging
+    mlflow.autolog()
+    for fw in ai_frameworks:
+        try:
+            getattr(mlflow, fw).autolog()
+        except Exception as e:
+            logging.warning(f"Failed to call mlflow autolog for {fw} ai framework", e)
 
     mlflow.set_experiment(experiment_name)
-    mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 
     # NOTE: user provides the model name if they want to link traces to a
     # specific AI System. We will recommend this for production, but not for dev
@@ -33,13 +55,16 @@ def init_domino_tracing(experiment_name: str, is_production: bool = False):
         model = mlflow.get_logged_model(model_id=model_id)
         mlflow.set_active_model(model_id=model.model_id)
     else:
+        if not mlflow.active_run():
+            raise Exception("No active run found. Please start a run when using Domino tracing in development mode.")
+
         # save configuration file for the AI System
         params = {}
         try:
-            with open("./production/ai_system_config.yaml", "r") as f:
+            with open(ai_system_config_path, "r") as f:
                 params = yaml.safe_load(f)
         except Exception as e:
-            print("Failed to read ai system config yaml: ", e)
+            logging.warning("Failed to read ai system config yaml: ", e)
 
         # if dev mode, we create a model, which represents the AI System
         # but traces will not be linked to it
@@ -72,19 +97,15 @@ def start_domino_trace(
     def decorator(func):
 
         def wrapper(*args, **kwargs):
-            is_production=os.getenv("PRODUCTION", "false") == "true"
+            is_production = _is_production()
             inputs = { 'args': args, 'kwargs': kwargs }
 
-            print("NIOLE STAERT TRACE")
             parent_trace = client.start_trace(name, inputs=inputs)
             result = func(*args, **kwargs)
-            print("NIOLE END TRACE")
             client.end_trace(parent_trace.trace_id, outputs=result)
 
-            print("NIOLE GET TRACE")
             # TODO error handling?
             trace = client.get_trace(parent_trace.trace_id).data.spans[0]
-            print("NIOLE GET TRACE 2")
 
             eval_result = do_evaluation(trace, evaluator, is_production)
             if eval_result:
@@ -125,7 +146,7 @@ def append_domino_span(
     def decorator(func):
 
         def wrapper(*args, **kwargs):
-            is_production=os.getenv("PRODUCTION", "false") == "true"
+            is_production = _is_production()
             with mlflow.start_span(name) as parent_span:
                 inputs = { 'args': args, 'kwargs': kwargs }
                 parent_span.set_inputs(inputs)
@@ -224,3 +245,6 @@ def do_evaluation(
         if not is_production and evaluator:
             return evaluator(span.inputs, span.outputs)
         return None
+
+def _is_production() -> bool:
+    return os.getenv("DOMINO_EVALUATION_LOGGING_IS_PROD", "false") == "true"

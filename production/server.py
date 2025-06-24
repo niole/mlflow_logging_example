@@ -17,12 +17,17 @@ logging.basicConfig(level=logging.DEBUG)
 load_dotenv()
 
 class Question(BaseModel):
-	content: str
+        content: str
 
 app = FastAPI()
 
 # all traces go to the same experiment, but may be linked to different ai system external models
-init_domino_tracing("assistant_dev_server_3", is_production=os.getenv("PRODUCTION", "false") == "true")
+init_domino_tracing(
+    "assistant_dev_server_3",
+    is_production=os.getenv("PRODUCTION", "false") == "true",
+    ai_frameworks=["openai", "langchain"],
+    ai_system_config_path="./production/ai_system_config.yaml"
+)
 
 @app.get("/")
 async def answer_question():
