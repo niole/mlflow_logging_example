@@ -31,7 +31,7 @@ def ask_assistant(question: str) -> str:
     # and used the tracing to figure out the bug
     return tools_table.get(tool_call["name"], lambda x: "I couldn't help with that").invoke(tool_call["args"])
 
-#@append_domino_span("my_answer_question_span")
+@append_domino_span("my_answer_question_span")
 def answer_question(question: str) -> str:
     """A simple RAG pipeline with manual tracing."""
 

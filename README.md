@@ -70,6 +70,23 @@ curl localhost:8000
 - get ID of run that you want to view
 - run analyze traces script `analyze_trace_data.py --runid <runid>`
 
+## test exporting to an opentelemetry collector
+
+Fetching new traces via mlflow client will fail if enabled
+
+- with opentelemetry collector
+```shell
+# configured by collector-config.yaml
+
+docker run -p 4317:4317 -p 4318:4318 --rm -v /Users/niole.nelson/prometheus-docker/collector-config.yaml:/etc/otelcol/config.yaml otel/opentelemetry-collector
+```
+
+- with prometheus
+```shell
+# WIP why didn't I do it with docker???
+./prometheus --config.file=./prometheus.yml --web.enable-otlp-receiver
+```
+
 # Accessed URLs
 
 URLs accessed when logging metrics:
@@ -91,3 +108,4 @@ overview, model metrics, and system metrics seem to be fetched always on page lo
 /ajax-api/2.0/mlflow/runs/get?run_id=219ba0a944254b66a7e47b690df16d9f
 
 # questions
+

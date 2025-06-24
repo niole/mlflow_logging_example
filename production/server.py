@@ -1,7 +1,7 @@
 import os
 
-os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4317"
 os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://localhost:4317/v1/traces"
+os.environ["OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"] = "grpc"
 os.environ["OTEL_SERVICE_NAME"] = "mlflowtest"
 
 import mlflow
@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from domino_eval_trace import init_domino_tracing
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
 
