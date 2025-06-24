@@ -49,27 +49,3 @@ def ask_assistant(question: str) -> str:
     # NOTE: I messed up the tool call definition earilier
     # and used the tracing to figure out the bug
     return tools_table.get(tool_call["name"], lambda x: "I couldn't help with that").invoke(tool_call["args"])
-
-#@append_domino_span("my_answer_question_span")
-def answer_question(question: str) -> str:
-    """A simple RAG pipeline with manual tracing."""
-
-    context = retrieve_context(question)
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": f"Context: {context}"},
-            {"role": "user", "content": question},
-        ],
-        max_tokens=150,
-    )
-
-    return response.choices[0].message.content
-
-
-@mlflow.trace(span_type=SpanType.RETRIEVER)
-def retrieve_context(question: str) -> str:
-    """Simulate context retrieval."""
-    # Simulate retrieval logic
-    return f"Relevant context for: {question}"
