@@ -73,27 +73,40 @@ def init_domino_tracing(
             params=params
         )
 
-"""
-This would be defined in a domino utility library
-
-the end user uses this as a decorator on the AI system call, which they want to
-trace and then evaluate the inputs/outputs of
-
-if the app is running in production, the evaluation is not run inline, but the inputs and outputs are
-instead saved somwehere. I don't know where yet: a dataset?
-
-user can provide input and output formatter for formatting what's on the trace
-and the evaluation result inputs
-"""
 def start_domino_trace(
         name: str,
-        evaluator: Optional[Callable[[Any, Any], Any]] = None,
-        evaluation_label: Optional[str] = None,
+        evaluator: Optional[Callable[[Any, Any], dict[str, Any]]] = None,
         extract_input_field: Optional[str] = None,
         extract_output_field: Optional[str] = None
     ):
-    # trace_parent_id? w3c context propagation with mlflow
+    """A decorator that starts an mlflow trace for the function it decorates.
+    It also enables the user to run an evaluation inline in the code is run in development mode on
+    the inputs and outputs of the wrapped function call.
+    The user can provide input and output formatters for formatting what's on the trace
+    and the evaluation result inputs, which can be used by client's to extract relevant data when
+    analyzing a trace.
 
+    @start_domino_trace(
+        name="assistant_chat_bot",
+        evaluator=evaluate_helpfulness,
+        extract_output_field="answer"
+    )
+    def ask_chat_bot(user_input: str) -> dict:
+        ...
+
+    Args:
+        name: the name of the trace to create
+
+        evaluator: an optional function that takes the inputs and outputs of the wrapped function and returns
+        a dictionary of evaluation results. The evaluation result will be added to the trace as tags.
+
+        extract_input_field: an optional dot separated string that specifies what subfield to access in the trace input
+
+        extract_output_field: an optional dot separated string that specifies what subfield to access in the trace output
+
+    Returns:
+        A decorator that wraps the function to be traced.
+    """
     def decorator(func):
 
         def wrapper(*args, **kwargs):
@@ -107,7 +120,7 @@ def start_domino_trace(
             # TODO error handling?
             trace = client.get_trace(parent_trace.trace_id).data.spans[0]
 
-            eval_result = do_evaluation(trace, evaluator, is_production)
+            eval_result = _do_evaluation(trace, evaluator, is_production)
             if eval_result:
                 for (k, v) in eval_result.items():
 
@@ -117,7 +130,6 @@ def start_domino_trace(
                         trace,
                         eval_result_label=k,
                         eval_result=v,
-                        is_production=is_production,
                         extract_input_field=extract_input_field,
                         extract_output_field=extract_output_field
                     )
@@ -129,20 +141,43 @@ def start_domino_trace(
         return wrapper
     return decorator
 
-"""
-This decorator lets users add a named span in the middle of a trace
-This is meant to add custom spans to autologged traces
-This will only add spans if there is an active trace
-
-we might want data from multiple spans in one evaluation, multiple arguments to evaluator
-"""
 def append_domino_span(
         name: str,
-        evaluation_result_label: Optional[str] = None,
-        evaluator: Optional[Callable[[Any, Any], Any]] = None,
+        evaluator: Optional[Callable[[Any, Any], dict[str, Any]]] = None,
         extract_input_field: Optional[str] = None,
         extract_output_field: Optional[str] = None
     ):
+    """A decorator that starts an mlflow span for the function it decorates. If there is an existing trace
+    this span will be appended to it.
+
+    It also enables the user to run an evaluation inline in the code is run in development mode on
+    the inputs and outputs of the wrapped function call.
+    The user can provide input and output formatters for formatting what's on the trace
+    and the evaluation result inputs, which can be used by client's to extract relevant data when
+    analyzing a trace.
+
+    @append_domino_span(
+        name="assistant_chat_bot",
+        evaluator=evaluate_helpfulness,
+        extract_output_field="answer"
+    )
+    def ask_chat_bot(user_input: str) -> dict:
+        ...
+
+    Args:
+        name: the name of the trace to create
+
+        evaluator: an optional function that takes the inputs and outputs of the wrapped function and returns
+        a dictionary of evaluation results. The evaluation result will be added to the trace as tags.
+
+        extract_input_field: an optional dot separated string that specifies what subfield to access in the trace input
+
+        extract_output_field: an optional dot separated string that specifies what subfield to access in the trace output
+
+    Returns:
+        A decorator that wraps the function to be traced.
+    """
+
     def decorator(func):
 
         def wrapper(*args, **kwargs):
@@ -153,7 +188,7 @@ def append_domino_span(
                 result = func(*args, **kwargs)
                 parent_span.set_outputs(result)
 
-                eval_result = do_evaluation(parent_span, evaluator, is_production)
+                eval_result = _do_evaluation(parent_span, evaluator, is_production)
 
                 if eval_result:
                     for (k, v) in eval_result.items():
@@ -161,7 +196,6 @@ def append_domino_span(
                             parent_span,
                             eval_result=v,
                             eval_result_label=k,
-                            is_production=is_production,
                             extract_input_field=extract_input_field,
                             extract_output_field=extract_output_field,
                         )
@@ -172,23 +206,28 @@ def append_domino_span(
         return wrapper
     return decorator
 
-"""
-This logs evaluation data and metdata to a span. These spans can be used to
-evaluate the AI System's performance
-
-extract_input_field: an optional dot separated string that specifies what subfield to access in the input
-when it is rendered in the Domino UI
-extract_output_field: an optional dot separated string that specifies what subfield to access in the output
-when it is rendered in the Domino UI, e.g. "messages.1.content"
-"""
 def domino_log_evaluation_data(
         span,
         eval_result,
         eval_result_label: Optional[str] = None,
-        is_production: bool = False,
         extract_input_field: Optional[str] = None,
         extract_output_field: Optional[str] = None
     ):
+    """This logs evaluation data and metdata to a span. This is used to log the evaluation of a span
+    to the span after it was created. This is useful for analyzing past performance of an AI System component.
+
+    Args:
+        span: the span to log the evaluation data to
+
+        eval_result: optional, the evaluation result to log. This must be a primitive type in order to enable
+        more powerful data analysis
+
+        eval_result_label: an optional label for the evaluation result. This is used to identify the evaluation result
+        extract_input_field: an optional dot separated string that specifies what subfield to access in the trace input
+        extract_output_field: an optional dot separated string that specifies what subfield to access in the trace output
+    """
+
+    is_production = _is_production()
     # can only do this if the span is status = 'OK' or 'ERROR'
     if eval_result:
         label = eval_result_label or "evaluation_result"
@@ -215,7 +254,7 @@ def _add_domino_tags(
     client.set_trace_tag(
         span.request_id,
         "domino.is_production",
-        str(is_prod)
+        json.dumps(is_prod)
     )
     client.set_trace_tag(
         span.request_id,
@@ -237,10 +276,10 @@ def _add_domino_tags(
             extract_output_field
         )
 
-def do_evaluation(
+def _do_evaluation(
         span,
-        evaluator: Optional[Callable[[Any, Any], Any]],
-        is_production: bool) -> Optional[dict]:
+        evaluator: Optional[Callable[[Any, Any], dict[str, Any]]] = None,
+        is_production: bool = False) -> Optional[dict]:
 
         if not is_production and evaluator:
             return evaluator(span.inputs, span.outputs)

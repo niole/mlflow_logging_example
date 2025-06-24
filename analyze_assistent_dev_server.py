@@ -42,7 +42,6 @@ def log_eval_metrics_to_autologged_traces():
             span,
             eval_result_label="helpfulness",
             eval_result=1, # fake eval result
-            is_production=False,
             extract_input_field="messages.1.content"
         )
 
