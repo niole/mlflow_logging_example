@@ -23,16 +23,12 @@ app = FastAPI()
 
 # all traces go to the same experiment, but may be linked to different ai system external models
 init_domino_tracing(
-    "assistant_dev_server_3",
+    "all_knowing_rag_agent_analysis",
     is_production=os.getenv("PRODUCTION", "false") == "true",
     ai_frameworks=["openai", "langchain"],
     ai_system_config_path="./production/ai_system_config.yaml"
 )
 
-@app.get("/")
-async def answer_question():
-    return util.answer_question("what is mlflow tracing?")
-
 @app.post("/assistant")
 async def assistant(question: Question):
-    return util.ask_assistant(question.content)
+    return util.answer_question_with_context(question.content)

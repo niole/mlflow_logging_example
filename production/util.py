@@ -21,7 +21,7 @@ llm = init_chat_model(
 )
 llm_with_tools = llm.bind_tools(tools, tool_choice="any")
 
-@append_domino_span("agent_response", evaluator=evaluators.question_fullfillment_evaluator)
+@append_domino_span("rag_response", evaluator=evaluators.question_fullfillment_evaluator)
 def answer_question_with_context(question: str) -> str:
     """
         users asks questions and this function should be able to answer anything
