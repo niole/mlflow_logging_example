@@ -3,7 +3,7 @@ import mlflow
 
 client = OpenAI()
 
-def assistant_evaluator(inputs, result):
+def assistant_evaluator(inputs, result) -> dict:
     eval_input = f"the question was: {inputs}, and the answer was {result}"
     messages = [
         {"role": "system", "content": "You are an llm judge for llm assistants who knows how to evaluate helpfulness of the assistant. You will be given an assistant's response and you will return a 1 if it was helpful and 0 if it was not. You will only reply with 1 or 0"},
@@ -17,6 +17,7 @@ def assistant_evaluator(inputs, result):
     if content is not None:
         eval_response = int(content)
         return {"helpfulness": eval_response}
+    return {"helpfulness": 0}
 
 """
 I have a RAG application, which is supposed to answer questions. When I ask it a question,
