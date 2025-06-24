@@ -1,9 +1,4 @@
 import os
-
-os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4317"
-os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://localhost:4317/v1/traces"
-os.environ["OTEL_SERVICE_NAME"] = "mlflowtest"
-
 import mlflow
 
 from random import random, randint
