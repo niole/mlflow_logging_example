@@ -1,7 +1,10 @@
 from openai import OpenAI
+from  domino_eval_trace import read_ai_system_config
 import mlflow
 
 client = OpenAI()
+
+ai_system_config = read_ai_system_config("./production/ai_system_config.yaml")
 
 def assistant_evaluator(inputs, result) -> dict:
     eval_input = f"the question was: {inputs}, and the answer was {result}"
@@ -11,7 +14,7 @@ def assistant_evaluator(inputs, result) -> dict:
     ]
     # openai autolog example
     # Inputs and outputs of the API request will be logged in a trace
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    response = client.chat.completions.create(model=ai_system_config["llm"]["chat_model"], messages=messages)
     content = response.choices[0].message.content
 
     if content is not None:
@@ -42,7 +45,7 @@ def question_fullfillment_evaluator(question: str, answer: str) -> dict[str, flo
     ]
     # openai autolog example
     # Inputs and outputs of the API request will be logged in a trace
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    response = client.chat.completions.create(model=ai_system_config["llm"]["chat_model"], messages=messages)
     content = response.choices[0].message.content
 
     if content is not None:

@@ -3,7 +3,7 @@ from random import random, randint
 from mlflow.entities import SpanType
 from openai import OpenAI
 import os
-from  domino_eval_trace import start_domino_trace, append_domino_span
+from  domino_eval_trace import start_domino_trace, append_domino_span, read_ai_system_config
 import evaluators
 from langchain.chat_models import init_chat_model
 from tools import tools, tools_table
@@ -14,9 +14,11 @@ mlflow.openai.autolog()
 mlflow.langchain.autolog()
 mlflow.autolog()
 
+ai_system_config = read_ai_system_config("./production/ai_system_config.yaml")
+
 client = OpenAI()
 llm = init_chat_model(
-    "gpt-3.5-turbo",
+    ai_system_config["llm"]["tool_model"],
     model_provider="openai"
 )
 llm_with_tools = llm.bind_tools(tools, tool_choice="any")
@@ -35,7 +37,7 @@ def answer_question_with_context(question: str) -> str:
     ]
     # openai autolog example
     # Inputs and outputs of the API request will be logged in a trace
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    response = client.chat.completions.create(model=ai_system_config["llm"]["chat_model"], messages=messages)
 
     return response.choices[0].message.content or "Sorry, I couldn't answer that question"
 

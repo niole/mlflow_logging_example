@@ -56,12 +56,7 @@ def init_domino_tracing(
         mlflow.set_active_model(model_id=model.model_id)
     else:
         # save configuration file for the AI System
-        params = {}
-        try:
-            with open(ai_system_config_path, "r") as f:
-                params = yaml.safe_load(f)
-        except Exception as e:
-            logging.warning("Failed to read ai system config yaml: ", e)
+        params = read_ai_system_config(ai_system_config_path)
 
         # if dev mode, we create a model, which represents the AI System
         # but traces will not be linked to it
@@ -240,6 +235,15 @@ def domino_log_evaluation_data(
             label
         )
     _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None)
+
+def read_ai_system_config(path: str = "./ai_system_config.yaml") -> dict:
+    params = {}
+    try:
+        with open(path, 'r') as f:
+            params = yaml.safe_load(f)
+    except Exception as e:
+        logging.warning("Failed to read ai system config yaml: ", e)
+    return params
 
 def _add_domino_tags(
         span,
