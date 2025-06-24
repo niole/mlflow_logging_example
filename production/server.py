@@ -21,7 +21,6 @@ class Question(BaseModel):
 
 app = FastAPI()
 
-# all traces go to the same experiment, but may be linked to different ai system external models
 init_domino_tracing(
     "all_knowing_rag_agent_analysis",
     is_production=os.getenv("PRODUCTION", "false") == "true",
