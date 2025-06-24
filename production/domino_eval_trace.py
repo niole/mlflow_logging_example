@@ -55,9 +55,6 @@ def init_domino_tracing(
         model = mlflow.get_logged_model(model_id=model_id)
         mlflow.set_active_model(model_id=model.model_id)
     else:
-        if not mlflow.active_run():
-            raise Exception("No active run found. Please start a run when using Domino tracing in development mode.")
-
         # save configuration file for the AI System
         params = {}
         try:
