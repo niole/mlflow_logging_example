@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from domino_eval_trace import init_domino_tracing
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 load_dotenv()
 
