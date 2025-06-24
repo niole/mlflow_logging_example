@@ -4,6 +4,10 @@ from domino_eval_trace import *
 from util import answer_question_with_context
 from db import collection
 
+"""
+This is an example of how you would evaluate the performance of a rag application in dev
+"""
+
 # add docs here in order to improve query context
 collection.add(documents=["this week I have to do DOM-1234"], ids=["domino1234"])
 
