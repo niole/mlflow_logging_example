@@ -9,11 +9,6 @@ from langchain.chat_models import init_chat_model
 from tools import tools, tools_table
 from rag import query_docs
 
-# must invole autolog in the file with the functions that you want to trace
-mlflow.openai.autolog()
-mlflow.langchain.autolog()
-mlflow.autolog()
-
 ai_system_config = read_ai_system_config("./production/ai_system_config.yaml")
 
 client = OpenAI()
