@@ -57,12 +57,11 @@ def build_dataset():
             continue
 
         span = spans[0]
-        # TODO all tags
         row = pd.DataFrame([{
             'name': span.name,
             'inputs': span.inputs,
             'outputs': span.outputs,
-            'evaluation_result': trace.info.tags.get('domino.evaluation_result', None),
+            'evaluation_score': trace.info.tags.get('domino.evaluation_result', None),
         }])
         df = pd.concat([df, row], ignore_index=True)
 
