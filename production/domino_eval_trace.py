@@ -6,8 +6,6 @@ import json
 import yaml
 import logging
 
-# can't find exp if tracking uri not set in file
-mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 client = MlflowClient()
 
 def init_domino_tracing(

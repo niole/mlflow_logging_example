@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import load_diabetes
 from sklearn.ensemble import RandomForestRegressor
 
-mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 mlflow.set_experiment("mlflow_default_w_sklearn_"+	str(randint(0, 1000)))
 mlflow.enable_system_metrics_logging()
 mlflow.autolog()

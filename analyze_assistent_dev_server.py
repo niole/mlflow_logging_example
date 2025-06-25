@@ -6,8 +6,6 @@ from production.domino_eval_trace import domino_log_evaluation_data
 
 # https://mlflow.org/docs/latest/genai/tracing/search-traces
 
-tracking_uri = f"http://localhost:{os.environ['REV_PROXY_PORT']}"
-mlflow.set_tracking_uri(tracking_uri)
 client = MlflowClient()
 
 def get_experiment_id() -> str:

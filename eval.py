@@ -8,7 +8,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from mlflow import MlflowClient
 
-mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 mlflow.set_experiment("eval_" + str(np.random.randint(0, 1000)))
 mlflow.autolog()
 

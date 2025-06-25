@@ -4,7 +4,6 @@ import mlflow
 from openai import OpenAI
 from domino_eval_run import domino_eval_run, domino_eval_run_dec, domino_eval_trace
 
-mlflow.set_tracking_uri(f"http://localhost:{os.environ['REV_PROXY_PORT']}")
 mlflow.set_experiment("openai_"+        str(randint(0, 1000)))
 
 mlflow.openai.autolog()
