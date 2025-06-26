@@ -8,6 +8,72 @@ import logging
 
 client = MlflowClient()
 
+def _do_evaluation(
+        span,
+        evaluator: Optional[Callable[[Any, Any], dict[str, Any]]] = None,
+        is_production: bool = False) -> Optional[dict]:
+
+        if not is_production and evaluator:
+            return evaluator(span.inputs, span.outputs)
+        return None
+
+def read_ai_system_config(path: str = "./ai_system_config.yaml") -> dict:
+    params = {}
+    try:
+        with open(path, 'r') as f:
+            params = yaml.safe_load(f)
+    except Exception as e:
+        logging.warning("Failed to read ai system config yaml: ", e)
+    return params
+
+def _add_domino_tags(
+        span,
+        is_prod: bool = False,
+        extract_input_field: Optional[str] = None,
+        extract_output_field: Optional[str] = None,
+        is_eval: bool = False
+    ):
+    client.set_trace_tag(
+        span.request_id,
+        "domino.is_production",
+        json.dumps(is_prod)
+    )
+    client.set_trace_tag(
+        span.request_id,
+        "domino.is_eval",
+        json.dumps(is_eval)
+    )
+
+    if extract_input_field:
+        client.set_trace_tag(
+            span.request_id,
+            "domino.extract_input_field",
+            extract_input_field
+        )
+
+    if extract_output_field:
+        client.set_trace_tag(
+            span.request_id,
+            "domino.extract_output_field",
+            extract_output_field
+        )
+
+
+def _is_production() -> bool:
+    return os.getenv("DOMINO_EVALUATION_LOGGING_IS_PROD", "false") == "true"
+
+def _get_prod_model_id() -> str:
+    model_id = os.getenv("DOMINO_AI_SYSTEM_MODEL_ID", None)
+    if not model_id:
+        raise Exception("DOMINO_AI_SYSTEM_MODEL_ID environment variable must be set in production mode")
+
+    return model_id
+
+def _get_prod_logged_model():
+    model_id = _get_prod_model_id()
+
+    return mlflow.get_logged_model(model_id=model_id)
+
 def init_domino_tracing(
         experiment_name: str,
         ai_frameworks: list[str] = list(),
@@ -45,12 +111,7 @@ def init_domino_tracing(
     # specific AI System. We will recommend this for production, but not for dev
     # evaluation
     if is_production:
-        model_id = os.getenv("DOMINO_AI_SYSTEM_MODEL_ID", None)
-
-        if not model_id:
-            raise Exception("DOMINO_AI_SYSTEM_MODEL_ID environment variable must be set in production mode")
-
-        model = mlflow.get_logged_model(model_id=model_id)
+        model = _get_prod_logged_model()
         mlflow.set_active_model(model_id=model.model_id)
     else:
         # save configuration file for the AI System
@@ -224,65 +285,53 @@ def domino_log_evaluation_data(
 
         client.set_trace_tag(
             span.request_id,
-            f"domino.evaluation_result",
+            f"domino.evaluation_result.{label}",
             eval_result
         )
         client.set_trace_tag(
             span.request_id,
-            "domino.evaluation_result_label",
-            label
+            f"domino.evaluation_label.{label}",
+            "true"
         )
     _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None)
 
-def read_ai_system_config(path: str = "./ai_system_config.yaml") -> dict:
-    params = {}
-    try:
-        with open(path, 'r') as f:
-            params = yaml.safe_load(f)
-    except Exception as e:
-        logging.warning("Failed to read ai system config yaml: ", e)
-    return params
+def log_summary_metric(evaluation_label: str, aggregation: Callable[[list], Any]):
+    """Use this to log an aggregation metric for an evaluation at the end of a run or when
+    doing analyziz in production
 
-def _add_domino_tags(
-        span,
-        is_prod: bool = False,
-        extract_input_field: Optional[str] = None,
-        extract_output_field: Optional[str] = None,
-        is_eval: bool = False
-    ):
-    client.set_trace_tag(
-        span.request_id,
-        "domino.is_production",
-        json.dumps(is_prod)
-    )
-    client.set_trace_tag(
-        span.request_id,
-        "domino.is_eval",
-        json.dumps(is_eval)
-    )
+    TODO add summary window
 
-    if extract_input_field:
-        client.set_trace_tag(
-            span.request_id,
-            "domino.extract_input_field",
-            extract_input_field
+    Args:
+        evaluation_label: The label of the evaluation result that you returned from your evaluator
+        aggregation: a funciton that aggregates a list of evaluation results. Should be a list of primitive values
+    """
+    label = f"domino.evaluation_result.{evaluation_label}"
+    filter_string = f"tags.domino.evaluation_label.{evaluation_label} = 'true'"
+    is_production = _is_production()
+    traces = None
+    if  is_production:
+        # logs a summary metric to LoggedModel
+        model = _get_prod_logged_model()
+        model_id = model.model_id
+        experiment_id = model.experiment_id
+
+        traces = client.search_traces(
+            experiment_ids=[experiment_id],
+            model_id=model_id,
+            filter_string=filter_string
         )
 
-    if extract_output_field:
-        client.set_trace_tag(
-            span.request_id,
-            "domino.extract_output_field",
-            extract_output_field
+    else:
+        # logs a summary metric to the run
+        run = mlflow.active_run()
+        experiment_id = run.info.experiment_id
+
+        traces = client.search_traces(
+            run_id = run.info.run_id,
+            experiment_ids=[experiment_id],
+            filter_string=filter_string
         )
 
-def _do_evaluation(
-        span,
-        evaluator: Optional[Callable[[Any, Any], dict[str, Any]]] = None,
-        is_production: bool = False) -> Optional[dict]:
-
-        if not is_production and evaluator:
-            return evaluator(span.inputs, span.outputs)
-        return None
-
-def _is_production() -> bool:
-    return os.getenv("DOMINO_EVALUATION_LOGGING_IS_PROD", "false") == "true"
+    if traces:
+        aggregate = aggregation([t.info.tags.get(label, None) for t in traces])
+        mlflow.log_metric(label, aggregate)

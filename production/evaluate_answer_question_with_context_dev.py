@@ -11,6 +11,10 @@ This is an example of how you would evaluate the performance of a rag applicatio
 # add docs here in order to improve query context
 collection.add(documents=["this week I have to do DOM-1234"], ids=["domino1234"])
 
+def average(vs: list[str]) -> float:
+    ns = [float(v) for v in vs]
+    return sum(ns)/len(ns)
+
 if __name__ == "__main__":
     init_domino_tracing("all_knowing_rag_agent_analysis", ["openai", "langchain"], False)
 
@@ -26,3 +30,5 @@ if __name__ == "__main__":
         # evaluating the answer question with context function
         for question in questions:
             answer_question_with_context(question)
+
+        log_summary_metric("fullfilled", average)

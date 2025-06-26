@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timezone, timedelta
+from domino_eval_trace import *
 from util import answer_question_with_context
 import evaluators
 import pandas as pd
