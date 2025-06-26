@@ -61,7 +61,7 @@ def build_dataset():
             'name': span.name,
             'inputs': span.inputs,
             'outputs': span.outputs,
-            'evaluation_score': trace.info.tags.get('domino.evaluation_result', None),
+            'evaluation_score': trace.info.tags.get('domino.evaluation_result.fullfilled', None),
         }])
         df = pd.concat([df, row], ignore_index=True)
 
