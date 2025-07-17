@@ -9,7 +9,7 @@ from production.domino_eval_trace import domino_log_evaluation_data
 client = MlflowClient()
 
 def get_experiment_id() -> str:
-    exps = mlflow.search_experiments(filter_string="name = 'assistant_dev_server_3'")
+    exps = mlflow.search_experiments(filter_string="name = 'all_knowing_rag_agent_analysis'")
     if len(exps) == 0:
         raise Exception("assistant_dev_server experiment not found. Run the dev server first.")
     return exps[0].experiment_id
@@ -24,7 +24,7 @@ def log_eval_metrics_to_autologged_traces():
     # this doesn't actually return all spans, i guess just traces?
     completion_traces = mlflow.search_traces(
         experiment_ids=[experiment_id],
-        filter_string="trace.name = 'Completions'",
+        filter_string="trace.name = 'rag_response'",
         return_type="list"
     )
 
@@ -34,14 +34,16 @@ def log_eval_metrics_to_autologged_traces():
     # how will a user know what span name to look for if they don't look at the mlflow dashboard?
     # btw we don't expose the dashboard by default in the domino UI
     for trace in completion_traces:
-        spans = trace.search_spans(name = "Completions")
-        span = spans[0]
-        domino_log_evaluation_data(
-            span,
-            eval_result_label="helpfulness",
-            eval_result=1, # fake eval result
-            extract_input_field="messages.1.content"
-        )
+        opt_spans = [trace.search_spans(name = "Completions"), trace.search_spans(name = "Completions_1"), trace.search_spans(name = "Completions_2")]
+        spans = [item for sl in opt_spans for item in sl]
+        for span in spans:
+            sample = span.inputs['messages'][0]
+            domino_log_evaluation_data(
+                span,
+                sample=sample,
+                eval_result_label="helpfulness",
+                eval_result=1, # fake eval result
+            )
 
 
 """
@@ -61,7 +63,7 @@ def main():
     # get all traces that are domino eval traces in the experiment
     ts = client.search_traces(
         experiment_ids=[experiment_id],
-        filter_string="tags.domino.is_eval = 'True'"
+        filter_string="tag.domino.internal.is_eval = 'true'"
     )
 
     trace_df = pd.DataFrame({'span_name': [], 'inputs': [], 'outputs': [],  'evaluation_result_label': [], 'evaluation_result':[] })
@@ -69,8 +71,8 @@ def main():
     for t in ts:
         s = t.data.spans[0]
         search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
-        eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
-        extract_input_field = t.info.tags.get('domino.extract_input_field', None),
+#        eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
+        extract_input_field = t.info.tags.get('domino.internal.extract_input_field', None),
 
         inputs = s.inputs
 
@@ -94,7 +96,7 @@ def main():
             'span_name': s.name,
             'inputs': inputs,
             'outputs': t.data.response,
-            'evaluation_result_label': t.info.tags.get('domino.evaluation_result_label', None),
+            'evaluation_result_label': t.info.tags.get('domino.internal.evaluation_result_label', None),
             'evaluation_result': t.info.tags.get('domino.evaluation_result', None),
         }])
         trace_df = pd.concat([trace_df, new_row], ignore_index=True)
@@ -103,4 +105,4 @@ def main():
 
 if __name__ == '__main__':
     log_eval_metrics_to_autologged_traces()
-    main()
+    #main()

@@ -32,7 +32,8 @@ def _add_domino_tags(
         is_prod: bool = False,
         extract_input_field: Optional[str] = None,
         extract_output_field: Optional[str] = None,
-        is_eval: bool = False
+        is_eval: bool = False,
+        sample: Optional[Any] = None,
     ):
     client.set_trace_tag(
         span.request_id,
@@ -45,9 +46,9 @@ def _add_domino_tags(
         json.dumps(is_eval)
     )
 
-    raw_sample = [span.inputs, span.outputs]
+    raw_sample = sample or [span.inputs, span.outputs]
 
-    if extract_input_field:
+    if not sample and extract_input_field:
         raw_sample = [extract_subfield(span.inputs, extract_input_field), raw_sample[1]]
         client.set_trace_tag(
             span.request_id,
@@ -55,7 +56,7 @@ def _add_domino_tags(
             extract_input_field
         )
 
-    if extract_output_field:
+    if not sample and extract_output_field:
         raw_sample = [raw_sample[0], extract_subfield(span.outputs, extract_output_field)]
         client.set_trace_tag(
             span.request_id,
@@ -64,11 +65,17 @@ def _add_domino_tags(
         )
 
     if is_eval:
-        sample = '|'.join([json.dumps(s) for s in raw_sample])
+        tag_sample = None
+        if sample:
+            tag_sample = json.dumps(sample)
+        else:
+            tag_sample = '|'.join([json.dumps(s) for s in raw_sample])
+
+        # TODO validate that sample is < 5 kb https://mlflow.org/docs/latest/api_reference/rest-api.html#request-structure
         client.set_trace_tag(
             span.request_id,
             "domino.internal.sample",
-            sample
+            tag_sample
         )
 
 
@@ -290,8 +297,9 @@ def domino_log_evaluation_data(
         span,
         eval_result,
         eval_result_label: Optional[str] = None,
+        sample: Optional[Any] = None,
         extract_input_field: Optional[str] = None,
-        extract_output_field: Optional[str] = None
+        extract_output_field: Optional[str] = None,
     ):
     """This logs evaluation data and metdata to a span. This is used to log the evaluation of a span
     to the span after it was created. This is useful for analyzing past performance of an AI System component.
@@ -303,6 +311,7 @@ def domino_log_evaluation_data(
         more powerful data analysis
 
         eval_result_label: an optional label for the evaluation result. This is used to identify the evaluation result
+        sample: An optional sample representing what was evaluated. It must be JSON serializable. The sample will default to the inputs and outputs of the span.
         extract_input_field: an optional dot separated string that specifies what subfield to access in the trace input
         extract_output_field: an optional dot separated string that specifies what subfield to access in the trace output
     """
@@ -315,14 +324,14 @@ def domino_log_evaluation_data(
         client.set_trace_tag(
             span.request_id,
             f"domino.evaluation_result.{label}",
-            eval_result
+            json.dumps(eval_result),
         )
         client.set_trace_tag(
             span.request_id,
             f"domino.evaluation_label.{label}",
             "true"
         )
-    _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None)
+    _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None, sample=sample)
 
 def log_summary_metric(evaluation_label: str, aggregation: Callable[[list], Any]):
     """Use this to log an aggregation metric for an evaluation at the end of a run or when
