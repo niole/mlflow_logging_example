@@ -23,6 +23,7 @@ def read_ai_system_config(path: str = "./ai_system_config.yaml") -> dict:
         with open(path, 'r') as f:
             params = yaml.safe_load(f)
     except Exception as e:
+        # TODO make this quiet in production
         logging.warning("Failed to read ai system config yaml: ", e)
     return params
 
@@ -35,29 +36,57 @@ def _add_domino_tags(
     ):
     client.set_trace_tag(
         span.request_id,
-        "domino.is_production",
+        "domino.internal.is_production",
         json.dumps(is_prod)
     )
     client.set_trace_tag(
         span.request_id,
-        "domino.is_eval",
+        "domino.internal.is_eval",
         json.dumps(is_eval)
     )
 
+    raw_sample = [span.inputs, span.outputs]
+
     if extract_input_field:
+        raw_sample = [extract_subfield(span.inputs, extract_input_field), raw_sample[1]]
         client.set_trace_tag(
             span.request_id,
-            "domino.extract_input_field",
+            "domino.internal.extract_input_field",
             extract_input_field
         )
 
     if extract_output_field:
+        raw_sample = [raw_sample[0], extract_subfield(span.outputs, extract_output_field)]
         client.set_trace_tag(
             span.request_id,
-            "domino.extract_output_field",
+            "domino.internal.extract_output_field",
             extract_output_field
         )
 
+    if is_eval:
+        sample = '|'.join([json.dumps(s) for s in raw_sample])
+        client.set_trace_tag(
+            span.request_id,
+            "domino.internal.sample",
+            sample
+        )
+
+
+def extract_subfield(field: dict[str, Any], extract_field: str):
+    inputs = field
+    subpaths = extract_field.split('.')
+    for path in subpaths:
+        try:
+            i = int(path)
+            inputs = inputs[i]
+            continue
+        except:
+            # it's not an index
+            pass
+
+        inputs = inputs[path]
+
+    return inputs
 
 def _is_production() -> bool:
     return os.getenv("DOMINO_EVALUATION_LOGGING_IS_PROD", "false") == "true"
