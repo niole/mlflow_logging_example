@@ -3,8 +3,10 @@ from mlflow import MlflowClient
 from typing import Optional, Callable, Any
 import mlflow
 import json
+import time
 import yaml
 import logging
+from datetime import datetime, timezone
 
 client = MlflowClient()
 
@@ -48,21 +50,12 @@ def _add_domino_tags(
 
     raw_sample = sample or [span.inputs, span.outputs]
 
+    # TODO I want to get rid of these
     if not sample and extract_input_field:
         raw_sample = [extract_subfield(span.inputs, extract_input_field), raw_sample[1]]
-        client.set_trace_tag(
-            span.request_id,
-            "domino.internal.extract_input_field",
-            extract_input_field
-        )
 
     if not sample and extract_output_field:
         raw_sample = [raw_sample[0], extract_subfield(span.outputs, extract_output_field)]
-        client.set_trace_tag(
-            span.request_id,
-            "domino.internal.extract_output_field",
-            extract_output_field
-        )
 
     if is_eval:
         tag_sample = None
@@ -74,7 +67,7 @@ def _add_domino_tags(
         # TODO validate that sample is < 5 kb https://mlflow.org/docs/latest/api_reference/rest-api.html#request-structure
         client.set_trace_tag(
             span.request_id,
-            "domino.internal.sample",
+            f"domino.internal.{span.name}.sample",
             tag_sample
         )
 
@@ -301,11 +294,11 @@ def domino_log_evaluation_data(
         extract_input_field: Optional[str] = None,
         extract_output_field: Optional[str] = None,
     ):
-    """This logs evaluation data and metdata to a span. This is used to log the evaluation of a span
-    to the span after it was created. This is useful for analyzing past performance of an AI System component.
+    """This logs evaluation data and metdata to a parent trace. This is used to log the evaluation of a span
+    after it was created. This is useful for analyzing past performance of an AI System component.
 
     Args:
-        span: the span to log the evaluation data to
+        span: the span to evaluate
 
         eval_result: optional, the evaluation result to log. This must be a primitive type in order to enable
         more powerful data analysis
@@ -317,18 +310,18 @@ def domino_log_evaluation_data(
     """
 
     is_production = _is_production()
-    # can only do this if the span is status = 'OK' or 'ERROR'
+    # TODO can only do this if the span is status = 'OK' or 'ERROR'
     if eval_result:
         label = eval_result_label or "evaluation_result"
 
         client.set_trace_tag(
             span.request_id,
-            f"domino.evaluation_result.{label}",
+            f"domino.evaluation_result.{span.name}.{label}",
             json.dumps(eval_result),
         )
         client.set_trace_tag(
             span.request_id,
-            f"domino.evaluation_label.{label}",
+            f"domino.evaluation_label.{span.name}.{label}",
             "true"
         )
     _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None, sample=sample)
@@ -373,3 +366,57 @@ def log_summary_metric(evaluation_label: str, aggregation: Callable[[list], Any]
     if traces:
         aggregate = aggregation([t.info.tags.get(label, None) for t in traces])
         mlflow.log_metric(label, aggregate)
+
+class DominoEvaluation:
+    def __init__(self, name: str, value: Any, sample: str, inputs: Any, outputs: Any, trace_id: str, span_name: str):
+        self.name = name
+        self.value = value
+        self.sample = sample
+        self.inputs = inputs
+        self.outputs = outputs
+        self.trace_id = trace_id
+        self.span_name = span_name
+
+"""
+helps user find spans that they want to evaluate in a post-hoc fashion
+By default returns spans in from the last day
+TODO add run_id?
+evaluation data is all on the trace, but the span could be a subset of the trace
+"""
+def find_spans(
+        experiment_id: str,
+        parent_trace_name: Optional[str] = None,
+        span_names: Optional[list[str]] = None,
+        start_time_ms: Optional[int] = None,
+        end_time_ms: Optional[int] = None,
+        evaluations_only: bool = False,
+    ) -> list:
+    default_timestamp = int(time.time() * 1000)
+    start_time = start_time_ms or (default_timestamp - (24*60*60*1000))
+    end_time = end_time_ms or default_timestamp
+
+    limit = 100
+    filter_string = f"status = 'OK' AND trace.timestamp > {start_time} AND trace.timestamp < {end_time}"
+    if parent_trace_name:
+        filter_string += f" AND trace.name = '{parent_trace_name}'"
+
+    if evaluations_only:
+        filter_string += f" AND tags.domino.internal.is_eval = 'true'"
+
+    traces = mlflow.search_traces(
+        experiment_ids=[experiment_id],
+        filter_string=filter_string,
+        max_results=limit,
+        return_type="list",
+    )
+
+    all_span_names = span_names or [parent_trace_name] if parent_trace_name else []
+    if len(all_span_names) > 0:
+        spans = []
+        for trace in traces:
+            opt_spans =  [trace.search_spans(name=name) for name in all_span_names]
+            spans.extend([item for sl in opt_spans for item in sl])
+        return spans
+    else:
+        # get top span, which is the parent trace's span
+        return [t.data.spans[0] for t in traces]

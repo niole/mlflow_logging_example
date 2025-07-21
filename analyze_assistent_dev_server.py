@@ -1,8 +1,10 @@
 import os
+import re
 import mlflow
 from mlflow import MlflowClient
 import pandas as pd
-from production.domino_eval_trace import domino_log_evaluation_data
+from production.domino_eval_trace import domino_log_evaluation_data, find_spans
+import time
 
 # https://mlflow.org/docs/latest/genai/tracing/search-traces
 
@@ -20,30 +22,23 @@ add evaluation results to evaluation traces
 def log_eval_metrics_to_autologged_traces():
     experiment_id = get_experiment_id()
 
-    # search for Completion spans
-    # this doesn't actually return all spans, i guess just traces?
-    completion_traces = mlflow.search_traces(
-        experiment_ids=[experiment_id],
-        filter_string="trace.name = 'rag_response'",
-        return_type="list"
-    )
+    spans = find_spans(
+            experiment_id,
+            parent_trace_name="rag_response", span_names=["Completions_2", "Completions_1"])
 
     # log evaluation metrics to the Completion spans
     # if a user writes this evaluation code and then they change the code path to have multiple Completions
     # traces, open ai may modify the Completion trace names in the mlflow ui to make them unique
     # how will a user know what span name to look for if they don't look at the mlflow dashboard?
     # btw we don't expose the dashboard by default in the domino UI
-    for trace in completion_traces:
-        opt_spans = [trace.search_spans(name = "Completions"), trace.search_spans(name = "Completions_1"), trace.search_spans(name = "Completions_2")]
-        spans = [item for sl in opt_spans for item in sl]
-        for span in spans:
-            sample = span.inputs['messages'][0]
-            domino_log_evaluation_data(
-                span,
-                sample=sample,
-                eval_result_label="helpfulness",
-                eval_result=1, # fake eval result
-            )
+    for span in spans:
+        sample = span.inputs['messages'][0]
+        domino_log_evaluation_data(
+            span,
+            sample=sample,
+            eval_result_label="helpfulness",
+            eval_result=1, # fake eval result
+        )
 
 
 """
@@ -66,11 +61,23 @@ def main():
         filter_string="tag.domino.internal.is_eval = 'true'"
     )
 
-    trace_df = pd.DataFrame({'span_name': [], 'inputs': [], 'outputs': [],  'evaluation_result_label': [], 'evaluation_result':[] })
+    evaluation_labels = set()
+    p = "domino.evaluation_result.(.*)$"
+
+    for t in ts:
+        for k, _ in t.info.tags.items():
+            m = re.search(p, k)
+            if m:
+                evaluation_labels.add(m.group(1))
+
+    df_content = {'span_name': [], 'inputs': [], 'outputs': [],  'evaluation_result_label': [], 'evaluation_result':[] }
+    print(evaluation_labels)
+    for l in evaluation_labels:
+        df_content[l] = []
+    trace_df = pd.DataFrame(df_content)
 
     for t in ts:
         s = t.data.spans[0]
-        search_filter = f"compareRunsMode=TRACES&selectedTraceId={t.info.trace_id}"
 #        eval_trace_url = f"{tracking_uri}/#/experiments/{experiment_id}?{search_filter}"
         extract_input_field = t.info.tags.get('domino.internal.extract_input_field', None),
 
@@ -95,7 +102,7 @@ def main():
         new_row = pd.DataFrame([{
             'span_name': s.name,
             'inputs': inputs,
-            'outputs': t.data.response,
+            'outputs': s.outputs,
             'evaluation_result_label': t.info.tags.get('domino.internal.evaluation_result_label', None),
             'evaluation_result': t.info.tags.get('domino.evaluation_result', None),
         }])
@@ -105,4 +112,4 @@ def main():
 
 if __name__ == '__main__':
     log_eval_metrics_to_autologged_traces()
-    #main()
+    main()
