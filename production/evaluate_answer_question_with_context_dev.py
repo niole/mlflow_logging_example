@@ -16,7 +16,7 @@ def average(vs: list[str]) -> float:
     return sum(ns)/len(ns)
 
 if __name__ == "__main__":
-    init_domino_tracing("all_knowing_rag_agent_analysis", ["openai", "langchain"], False)
+    init_domino_tracing("all_knowing_rag_agent_analysis2", ["openai", "langchain"], False)
 
     # example questions
     questions = [

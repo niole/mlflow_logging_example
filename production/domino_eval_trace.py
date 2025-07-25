@@ -67,7 +67,7 @@ def _add_domino_tags(
         # TODO validate that sample is < 5 kb https://mlflow.org/docs/latest/api_reference/rest-api.html#request-structure
         client.set_trace_tag(
             span.request_id,
-            f"domino.internal.{span.name}.sample",
+            f"domino.evaluation.span.{span.name}.sample",
             tag_sample
         )
 
@@ -316,13 +316,8 @@ def domino_log_evaluation_data(
 
         client.set_trace_tag(
             span.request_id,
-            f"domino.evaluation_result.{span.name}.{label}",
+            f"domino.evaluation.span.{span.name}.result.{label}",
             json.dumps(eval_result),
-        )
-        client.set_trace_tag(
-            span.request_id,
-            f"domino.evaluation_label.{span.name}.{label}",
-            "true"
         )
     _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None, sample=sample)
 
@@ -336,8 +331,8 @@ def log_summary_metric(evaluation_label: str, aggregation: Callable[[list], Any]
         evaluation_label: The label of the evaluation result that you returned from your evaluator
         aggregation: a funciton that aggregates a list of evaluation results. Should be a list of primitive values
     """
-    label = f"domino.evaluation_result.{evaluation_label}"
-    filter_string = f"tags.domino.evaluation_label.{evaluation_label} = 'true'"
+    label = f"domino.evaluation.result.{evaluation_label}"
+    filter_string = f"tags.domino.evaluation.label.{evaluation_label} = 'true'"
     is_production = _is_production()
     traces = None
     if  is_production:

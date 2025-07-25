@@ -22,7 +22,7 @@ class Question(BaseModel):
 app = FastAPI()
 
 init_domino_tracing(
-    "all_knowing_rag_agent_analysis",
+    "all_knowing_rag_agent_analysis2",
     is_production=os.getenv("PRODUCTION", "false") == "true",
     ai_frameworks=["openai", "langchain"],
     ai_system_config_path="./production/ai_system_config.yaml"
