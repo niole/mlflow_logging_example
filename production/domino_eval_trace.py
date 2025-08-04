@@ -39,7 +39,7 @@ def _add_domino_tags(
     ):
     client.set_trace_tag(
         span.request_id,
-        "domino.internal.is_production",
+        "domino.internal.aisystem.is_production",
         json.dumps(is_prod)
     )
     client.set_trace_tag(
@@ -316,13 +316,8 @@ def domino_log_evaluation_data(
 
         client.set_trace_tag(
             span.request_id,
-            f"domino.evaluation_result.{span.name}.{label}",
+            f"domino.prog.metric.{label}",
             json.dumps(eval_result),
-        )
-        client.set_trace_tag(
-            span.request_id,
-            f"domino.evaluation_label.{span.name}.{label}",
-            "true"
         )
     _add_domino_tags(span, is_production, extract_input_field, extract_output_field, is_eval=eval_result is not None, sample=sample)
 
