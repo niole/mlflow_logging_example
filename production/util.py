@@ -3,11 +3,13 @@ from random import random, randint
 from mlflow.entities import SpanType
 from openai import OpenAI
 import os
-from  domino_eval_trace import start_domino_trace, append_domino_span, read_ai_system_config
-import evaluators
 from langchain.chat_models import init_chat_model
 from tools import tools, tools_table
 from rag import query_docs
+
+from domino.aisystems.tracing import add_tracing
+from domino.aisystems import read_ai_system_config
+import evaluators
 
 ai_system_config = read_ai_system_config("./production/ai_system_config.yaml")
 
@@ -18,8 +20,7 @@ llm = init_chat_model(
 )
 llm_with_tools = llm.bind_tools(tools, tool_choice="any")
 
-#@append_domino_span("rag_response", evaluator=evaluators.question_fullfillment_evaluator, extract_input_field="args.0")
-@start_domino_trace("rag_response", evaluator=evaluators.question_fullfillment_evaluator, extract_input_field="args.0")
+@add_tracing(name="rag_response", evaluator=evaluators.question_fullfillment_evaluator)
 def answer_question_with_context(question: str) -> str:
     """
         users asks questions and this function should be able to answer anything
@@ -38,7 +39,7 @@ def answer_question_with_context(question: str) -> str:
     return response.choices[0].message.content or "Sorry, I couldn't answer that question"
 
 
-@start_domino_trace("domino_eval_trace", evaluator=evaluators.assistant_evaluator)
+@add_tracing(name="domino_eval_trace", evaluator=evaluators.assistant_evaluator)
 def ask_assistant(question: str) -> str:
     # is very unhelpful half of the time
     content = llm_with_tools.invoke(question)
