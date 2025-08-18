@@ -65,6 +65,7 @@ def main():
 
     # Create and train models.
     rf = RandomForestRegressor(n_estimators = 100, max_depth = 6, max_features = 3)
+	mlflow.sklearn.log_model(rf)
     rf.fit(X_train, y_train)
 
     # Use the model to make predictions on the test dataset.
