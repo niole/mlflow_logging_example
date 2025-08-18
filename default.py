@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import load_diabetes
 from sklearn.ensemble import RandomForestRegressor
 
-mlflow.set_experiment("mlflow_default_w_sklearn_"+  str(randint(0, 1000)))
+mlflow.set_experiment("mlflow_default_w_sklearn")
 mlflow.enable_system_metrics_logging()
 mlflow.autolog()
 
