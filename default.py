@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 mlflow.set_experiment("mlflow_default_w_sklearn")
 mlflow.enable_system_metrics_logging()
 mlflow.autolog()
+mlflow.sklearn.autolog()
 
 client = MlflowClient()
 
